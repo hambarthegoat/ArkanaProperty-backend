@@ -1,0 +1,826 @@
+openapi: 3.0.3
+info:
+  title: ArkanaProperty API
+  description: |
+    REST API untuk ArkanaProperty - Property Marketing & CRM System.
+
+    Semua response menggunakan format standar:
+    ```json
+    {
+      "success": true,
+      "data": {},
+      "message": "Success"
+    }
+    ```
+
+    ### Autentikasi
+    Gunakan endpoint `POST /auth/login` untuk mendapatkan token Sanctum, lalu kirim header:
+    `Authorization: Bearer <token>`
+  version: "1.0.0"
+servers:
+  - url: http://127.0.0.1:8000/api
+    description: Local development server
+
+tags:
+  - name: Auth
+    description: Login & logout (semua role)
+  - name: Public (Tamu)
+    description: Endpoint publik, tidak perlu autentikasi
+  - name: Admin
+    description: Membutuhkan auth:sanctum + role:admin
+  - name: Marketing
+    description: Membutuhkan auth:sanctum + role:marketing
+  - name: Leads
+    description: Membutuhkan auth:sanctum + role:leads
+
+components:
+  securitySchemes:
+    sanctumToken:
+      type: http
+      scheme: bearer
+      bearerFormat: token
+      description: Sanctum personal access token, didapat dari endpoint login
+
+  schemas:
+    ApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          nullable: true
+        message:
+          type: string
+          example: Success
+
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          example: admin
+        password:
+          type: string
+          format: password
+          example: password
+
+    Perumahan:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        nama_perumahan:
+          type: string
+          example: Griya Asri
+        lokasi:
+          type: string
+          example: Bandung
+        deskripsi:
+          type: string
+          example: Perumahan modern dengan fasilitas lengkap
+        tipe_rumah:
+          type: array
+          items:
+            $ref: '#/components/schemas/TipeRumah'
+
+    TipeRumah:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        id_perumahan:
+          type: integer
+          example: 1
+        nama_tipe:
+          type: string
+          example: Tipe 36
+        jenis_rumah:
+          type: string
+          enum: [subsidi, premium]
+          example: subsidi
+        harga:
+          type: number
+          example: 150000000
+        dp:
+          type: number
+          example: 15000000
+        cicilan:
+          type: number
+          example: 1200000
+        spesifikasi:
+          type: string
+          example: 2 kamar tidur, 1 kamar mandi
+        kavling:
+          type: array
+          items:
+            $ref: '#/components/schemas/Kavling'
+
+    Kavling:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        id_tipe:
+          type: integer
+          example: 1
+        nomor_kavling:
+          type: string
+          example: A1
+        status:
+          type: string
+          enum: [tersedia, terjual]
+          example: tersedia
+
+    Leads:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        id_perumahan:
+          type: integer
+          example: 1
+        id_marketing:
+          type: integer
+          nullable: true
+          example: null
+        id_akun_leads:
+          type: integer
+          nullable: true
+          example: null
+        nama_calon:
+          type: string
+          example: Budi Santoso
+        no_telp:
+          type: string
+          example: "081234567890"
+        status_keseriusan:
+          type: string
+          example: pending
+        file_ktp:
+          type: string
+          example: ktp/abc123.jpg
+
+    Kalender:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        id_marketing:
+          type: integer
+          example: 2
+        id_leads:
+          type: integer
+          example: 3
+        tanggal_kegiatan:
+          type: string
+          format: date-time
+          example: "2026-07-01T10:00:00"
+        deskripsi_agenda:
+          type: string
+          example: Survey lokasi bersama calon pembeli
+
+    ReportMarketing:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        id_marketing:
+          type: integer
+          example: 2
+        tanggal_report:
+          type: string
+          format: date
+          example: "2026-06-16"
+        deskripsi_progres:
+          type: string
+          example: Follow up 3 leads baru
+
+security: []
+
+paths:
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login (Admin / Marketing / Leads)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login berhasil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+              example:
+                success: true
+                data:
+                  akun:
+                    id: 1
+                    username: admin
+                    role: admin
+                  token: "1|abcdef123456"
+                  token_type: Bearer
+                message: Login successful
+        '401':
+          description: Username atau password salah
+        '422':
+          description: Validasi gagal
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout (revoke token aktif)
+      security:
+        - sanctumToken: []
+      responses:
+        '200':
+          description: Logout berhasil
+        '401':
+          description: Unauthenticated
+
+  /public/perumahan:
+    get:
+      tags: [Public (Tamu)]
+      summary: Fetch katalog perumahan
+      parameters:
+        - name: lokasi
+          in: query
+          schema:
+            type: string
+          example: Bandung
+        - name: min_budget
+          in: query
+          schema:
+            type: number
+          example: 100000000
+        - name: max_budget
+          in: query
+          schema:
+            type: number
+          example: 300000000
+        - name: lama_angsuran
+          in: query
+          schema:
+            type: number
+          description: Filter berdasarkan nilai cicilan maksimum
+          example: 1500000
+        - name: jenis_rumah
+          in: query
+          schema:
+            type: string
+            enum: [subsidi, premium]
+          example: subsidi
+      responses:
+        '200':
+          description: Katalog perumahan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+
+  /public/perumahan/{id}:
+    get:
+      tags: [Public (Tamu)]
+      summary: Fetch detail perumahan beserta tipe rumah & kavling
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        '200':
+          description: Detail perumahan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '404':
+          description: Perumahan tidak ditemukan
+
+  /public/leads:
+    post:
+      tags: [Public (Tamu)]
+      summary: Submit form ketertarikan (jadi leads baru)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [id_perumahan, nama_calon, no_telp, file_ktp]
+              properties:
+                id_perumahan:
+                  type: integer
+                  example: 1
+                nama_calon:
+                  type: string
+                  example: Budi Santoso
+                no_telp:
+                  type: string
+                  example: "081234567890"
+                file_ktp:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Leads berhasil dibuat (status default pending)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '422':
+          description: Validasi gagal
+
+  /admin/perumahan:
+    get:
+      tags: [Admin]
+      summary: List semua perumahan
+      security:
+        - sanctumToken: []
+      responses:
+        '200':
+          description: List perumahan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden (bukan admin)
+    post:
+      tags: [Admin]
+      summary: Tambah perumahan baru beserta tipe rumah
+      security:
+        - sanctumToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nama_perumahan, lokasi]
+              properties:
+                nama_perumahan:
+                  type: string
+                  example: Griya Asri
+                lokasi:
+                  type: string
+                  example: Bandung
+                deskripsi:
+                  type: string
+                  example: Perumahan modern dengan fasilitas lengkap
+                tipe_rumah:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      nama_tipe:
+                        type: string
+                        example: Tipe 36
+                      jenis_rumah:
+                        type: string
+                        enum: [subsidi, premium]
+                        example: subsidi
+                      harga:
+                        type: number
+                        example: 150000000
+                      dp:
+                        type: number
+                        example: 15000000
+                      cicilan:
+                        type: number
+                        example: 1200000
+                      spesifikasi:
+                        type: string
+                        example: 2 kamar tidur, 1 kamar mandi
+      responses:
+        '201':
+          description: Perumahan berhasil dibuat
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden (bukan admin)
+        '422':
+          description: Validasi gagal
+
+  /admin/tipe-rumah/{idTipe}/kavling:
+    post:
+      tags: [Admin]
+      summary: Tambah kavling ke tipe rumah
+      security:
+        - sanctumToken: []
+      parameters:
+        - name: idTipe
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID tipe rumah (tb_tipe_rumah.id)
+          example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nomor_kavling]
+              properties:
+                nomor_kavling:
+                  type: string
+                  example: A1
+                status:
+                  type: string
+                  enum: [tersedia, terjual]
+                  default: tersedia
+                  example: tersedia
+      responses:
+        '201':
+          description: Kavling berhasil ditambahkan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+              example:
+                success: true
+                data:
+                  id: 1
+                  id_tipe: 1
+                  nomor_kavling: A1
+                  status: tersedia
+                message: Kavling berhasil ditambahkan
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden (bukan admin)
+        '404':
+          description: Tipe rumah tidak ditemukan
+        '422':
+          description: Validasi gagal
+
+  /admin/kavling/{id}:
+    put:
+      tags: [Admin]
+      summary: Update status kavling (tersedia / terjual)
+      security:
+        - sanctumToken: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [tersedia, terjual]
+                  example: terjual
+      responses:
+        '200':
+          description: Status kavling berhasil diupdate
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden (bukan admin)
+        '404':
+          description: Kavling tidak ditemukan
+        '422':
+          description: Validasi gagal
+
+  /admin/leads:
+    get:
+      tags: [Admin]
+      summary: View semua leads yang masuk
+      security:
+        - sanctumToken: []
+      responses:
+        '200':
+          description: List leads
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden (bukan admin)
+
+  /admin/leads/{id}/validate:
+    post:
+      tags: [Admin]
+      summary: Validasi KTP leads
+      description: |
+        Jika `is_valid = true`:
+        - Sistem otomatis membuat akun baru di `tb_akun` (role `leads`)
+        - `tb_leads.id_akun_leads` diisi dengan id akun baru tersebut
+        - `tb_leads.id_marketing` diisi dengan `id_marketing` yang dikirim
+        - `status_keseriusan` menjadi `validated`
+
+        Jika `is_valid = false`, `status_keseriusan` menjadi `rejected`.
+      security:
+        - sanctumToken: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [is_valid]
+              properties:
+                is_valid:
+                  type: boolean
+                  example: true
+                id_marketing:
+                  type: integer
+                  description: Wajib diisi jika is_valid = true. Harus akun dengan role marketing.
+                  example: 2
+      responses:
+        '200':
+          description: Lead berhasil divalidasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden (bukan admin)
+        '404':
+          description: Lead tidak ditemukan
+        '422':
+          description: Validasi gagal
+
+  /admin/reports:
+    get:
+      tags: [Admin]
+      summary: View rekap report harian semua marketing
+      security:
+        - sanctumToken: []
+      responses:
+        '200':
+          description: List report marketing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden (bukan admin)
+
+  /admin/marketing:
+    get:
+      tags: [Admin]
+      summary: List semua akun marketing
+      security:
+        - sanctumToken: []
+      responses:
+        '200':
+          description: List akun marketing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden (bukan admin)
+    post:
+      tags: [Admin]
+      summary: Buat akun marketing baru
+      security:
+        - sanctumToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username:
+                  type: string
+                  example: marketing01
+                password:
+                  type: string
+                  format: password
+                  example: password123
+                nama:
+                  type: string
+                  example: Andi Marketing
+                no_telp:
+                  type: string
+                  example: "081234567890"
+      responses:
+        '201':
+          description: Akun marketing berhasil dibuat
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden (bukan admin)
+        '422':
+          description: Validasi gagal (username sudah dipakai, dll)
+
+  /marketing/leads:
+    get:
+      tags: [Marketing]
+      summary: View leads yang ditugaskan ke marketing login
+      security:
+        - sanctumToken: []
+      responses:
+        '200':
+          description: List leads
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden (bukan marketing)
+
+  /marketing/leads/{id}:
+    get:
+      tags: [Marketing]
+      summary: View detail leads yang ditugaskan
+      security:
+        - sanctumToken: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        '200':
+          description: Detail lead
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden (bukan marketing)
+        '404':
+          description: Lead tidak ditemukan / bukan milik marketing ini
+
+  /marketing/calendar:
+    post:
+      tags: [Marketing]
+      summary: Buat agenda/reminder untuk leads tertentu
+      security:
+        - sanctumToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id_leads, tanggal_kegiatan]
+              properties:
+                id_leads:
+                  type: integer
+                  description: id akun leads (tb_akun dengan role leads)
+                  example: 5
+                tanggal_kegiatan:
+                  type: string
+                  format: date-time
+                  example: "2026-07-01T10:00:00"
+                deskripsi_agenda:
+                  type: string
+                  example: Survey lokasi bersama calon pembeli
+      responses:
+        '201':
+          description: Agenda berhasil dibuat
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden (bukan marketing)
+        '422':
+          description: Validasi gagal
+
+  /marketing/reports:
+    post:
+      tags: [Marketing]
+      summary: Submit report progres harian
+      security:
+        - sanctumToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tanggal_report, deskripsi_progres]
+              properties:
+                tanggal_report:
+                  type: string
+                  format: date
+                  example: "2026-06-16"
+                deskripsi_progres:
+                  type: string
+                  example: Follow up 3 leads baru, 1 deal closing
+      responses:
+        '201':
+          description: Report berhasil disubmit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden (bukan marketing)
+        '422':
+          description: Validasi gagal
+
+  /leads/calendar:
+    get:
+      tags: [Leads]
+      summary: Fetch agenda/reminder yang akan datang untuk leads login
+      security:
+        - sanctumToken: []
+      responses:
+        '200':
+          description: List agenda
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden (bukan leads)
+
+  /leads/marketing-contact:
+    get:
+      tags: [Leads]
+      summary: Fetch kontak marketing yang ditugaskan (nama & no. WA)
+      security:
+        - sanctumToken: []
+      responses:
+        '200':
+          description: Kontak marketing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+              example:
+                success: true
+                data:
+                  nama: marketing01
+                  no_wa: "081234567890"
+                message: Marketing contact retrieved successfully
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden (bukan leads)
+        '404':
+          description: Belum ada marketing yang ditugaskan
