@@ -2,7 +2,10 @@
 
 namespace App\Enums;
 
-enum KavlingStatus: string
+use Filament\Support\Contracts\HasColor;
+use Filament\Support\Contracts\HasLabel;
+
+enum KavlingStatus: string implements HasColor, HasLabel
 {
     case Tersedia = 'tersedia';
     case Booking = 'booking';
@@ -14,6 +17,20 @@ enum KavlingStatus: string
             self::Tersedia => 'Tersedia',
             self::Booking => 'Booking',
             self::Terjual => 'Terjual',
+        };
+    }
+
+    public function getLabel(): string
+    {
+        return $this->label();
+    }
+
+    public function getColor(): string
+    {
+        return match ($this) {
+            self::Tersedia => 'gray',
+            self::Booking => 'warning',
+            self::Terjual => 'success',
         };
     }
 }

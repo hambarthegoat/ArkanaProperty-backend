@@ -1,6 +1,6 @@
 # ArkanaProperty Backend
 
-Backend REST API untuk **ArkanaProperty** — sistem Property Marketing & CRM untuk perusahaan developer (PT). Dibangun dengan **Laravel 13**, **PHP 8.3+**, autentikasi **Laravel Sanctum**, dan database **PostgreSQL** (Supabase).
+Backend REST API dan **admin panel** untuk **ArkanaProperty** — sistem Property Marketing & CRM untuk perusahaan developer (PT). Dibangun dengan **Laravel 13**, **PHP 8.3+**, **Filament 5** (admin panel), autentikasi **Laravel Sanctum**, dan database **PostgreSQL** (Supabase).
 
 ---
 
@@ -196,7 +196,22 @@ Aplikasi akan berjalan di `http://127.0.0.1:8000`.
 
 ---
 
-## 8. Dokumentasi API
+## 8. Admin Panel (Filament)
+
+Admin panel tersedia di `http://127.0.0.1:8000/admin` dan memakai data yang sama dengan API.
+
+- Login memakai **username** dari `tb_akun` (guard `admin`); hanya akun `role = admin` yang bisa masuk. Akun marketing/leads memakai aplikasi frontend.
+- **Dashboard**: statistik leads & unit, tabel leads terbaru.
+- **Properti → Perumahan**: CRUD perumahan + gambar, tipe rumah dikelola di dalam halaman edit perumahan. Kolom jumlah unit tersedia/booking/terjual.
+- **Properti → Kavling**: CRUD kavling, ubah status langsung dari tabel, filter per perumahan/blok/status. Status `Tersedia` otomatis melepas pembeli.
+- **Penjualan → Leads**: aksi **Validasi** (pilih marketing → akun portal dibuat dengan username = nomor HP, password tampil sekali di notifikasi), **Tolak**, **Unduh KTP**, upload KTP susulan di halaman detail. Lead tidak bisa dibuat manual (hanya dari form minat).
+- **Marketing → Akun Marketing / Report Marketing / Agenda**: kelola akun marketing; report dan agenda read-only (diisi marketing dari frontend).
+
+Aset Filament (`public/css|js|fonts/filament`) di-generate otomatis oleh `composer install` (`php artisan filament:upgrade`), tidak di-commit.
+
+---
+
+## 9. Dokumentasi API
 
 Kontrak lengkap (request, response, enum) ada di [`docs/arkanaproperty-api.yaml`](docs/arkanaproperty-api.yaml) (OpenAPI 3). Semua response memakai format:
 
@@ -270,7 +285,7 @@ Konvensi: field snake_case berbahasa Indonesia, uang dikirim sebagai integer rup
 
 ---
 
-## 9. Testing Cepat dengan cURL
+## 10. Testing Cepat dengan cURL
 
 Login sebagai admin:
 
@@ -289,7 +304,7 @@ curl http://127.0.0.1:8000/api/admin/perumahan \
 
 ---
 
-## 10. Troubleshooting
+## 11. Troubleshooting
 
 | Masalah | Solusi |
 |---------|--------|
