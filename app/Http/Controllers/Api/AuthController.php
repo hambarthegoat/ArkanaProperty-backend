@@ -3,11 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\AkunResource;
 use App\Models\Akun;
 use App\Traits\ApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Validator;
 
 class AuthController extends Controller
 {
@@ -15,14 +15,10 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
-        $validator = Validator::make($request->all(), [
+        $request->validate([
             'username' => 'required|string',
             'password' => 'required|string',
         ]);
-
-        if ($validator->fails()) {
-            return $this->error('Validation failed', 422, $validator->errors());
-        }
 
         $akun = Akun::where('username', $request->username)->first();
 
@@ -33,14 +29,15 @@ class AuthController extends Controller
         $token = $akun->createToken('auth_token')->plainTextToken;
 
         return $this->success([
-            'akun' => [
-                'id' => $akun->id,
-                'username' => $akun->username,
-                'role' => $akun->role,
-            ],
+            'akun' => new AkunResource($akun),
             'token' => $token,
             'token_type' => 'Bearer',
         ], 'Login successful');
+    }
+
+    public function me(Request $request)
+    {
+        return $this->success(new AkunResource($request->user()), 'Authenticated account');
     }
 
     public function logout(Request $request)

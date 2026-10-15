@@ -2,13 +2,17 @@
 
 namespace App\Models;
 
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Models\Contracts\HasName;
+use Filament\Panel;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Laravel\Sanctum\HasApiTokens;
 
-class Akun extends Authenticatable
+class Akun extends Authenticatable implements FilamentUser, HasName
 {
-    use HasApiTokens;
+    use HasApiTokens, HasFactory;
 
     protected $table = 'tb_akun';
 
@@ -22,6 +26,7 @@ class Akun extends Authenticatable
 
     protected $hidden = [
         'password',
+        'remember_token',
     ];
 
     protected function casts(): array
@@ -29,6 +34,35 @@ class Akun extends Authenticatable
         return [
             'password' => 'hashed',
         ];
+    }
+
+    /**
+     * Only admin accounts may sign in to the Filament panel; marketing and
+     * leads use the frontend through the API.
+     */
+    public function canAccessPanel(Panel $panel): bool
+    {
+        return $this->isAdmin();
+    }
+
+    public function getFilamentName(): string
+    {
+        return $this->nama ?? $this->username;
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
+    }
+
+    public function isMarketing(): bool
+    {
+        return $this->role === 'marketing';
+    }
+
+    public function isLeads(): bool
+    {
+        return $this->role === 'leads';
     }
 
     public function leadsAsMarketing(): HasMany

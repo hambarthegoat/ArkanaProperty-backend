@@ -1,12 +1,12 @@
 # ArkanaProperty Backend
 
-Backend REST API untuk **ArkanaProperty** — sistem Property Marketing & CRM untuk perusahaan developer (PT). Dibangun dengan **Laravel 11**, **PHP 8.2+**, autentikasi **Laravel Sanctum**, dan database **PostgreSQL** (Supabase).
+Backend REST API dan **admin panel** untuk **ArkanaProperty** — sistem Property Marketing & CRM untuk perusahaan developer (PT). Dibangun dengan **Laravel 13**, **PHP 8.3+**, **Filament 5** (admin panel), autentikasi **Laravel Sanctum**, dan database **PostgreSQL** (Supabase).
 
 ---
 
 ## 1. Requirements
 
-- PHP **8.2 atau lebih baru** (disarankan 8.3/8.4)
+- PHP **8.3 atau lebih baru** (`composer.json` mengunci platform ke PHP 8.3 agar `composer install` jalan di 8.3 maupun 8.4)
 - Ekstensi PHP wajib:
   - `pdo_pgsql` dan `pgsql` (driver PostgreSQL)
   - `mbstring`, `openssl`, `tokenizer`, `xml`, `ctype`, `json`, `bcmath`, `curl`, `fileinfo`
@@ -132,17 +132,23 @@ Jalankan migrasi untuk membuat semua tabel (`tb_perumahan`, `tb_akun`, `tb_tipe_
 php artisan migrate
 ```
 
-Jalankan seeder untuk membuat akun admin default:
+Jalankan seeder untuk membuat akun admin default dan data demo (perumahan, tipe rumah, kavling, marketing, leads, agenda, report — sama dengan konten frontend):
 
 ```bash
 php artisan db:seed
 ```
 
-Akun admin default yang akan dibuat:
+Akun yang dibuat seeder:
 
-| Username | Password   | Role  |
-|----------|-----------|-------|
-| `admin`  | `password` | admin |
+| Username        | Password   | Role      |
+|-----------------|------------|-----------|
+| `admin`         | `password` | admin     |
+| `dimas`         | `password` | marketing |
+| `santi`         | `password` | marketing |
+| `081234567890`  | `password` | leads (Ahmad Rizky) |
+| `089876543210`  | `password` | leads (Siti Aminah) |
+
+> Seeder aman dijalankan ulang. Untuk produksi, jalankan hanya `php artisan db:seed --class=AdminSeeder` lalu ganti password admin.
 
 > **Catatan:** Jika ekstensi `pdo_pgsql` belum aktif secara global, tambahkan flag `-d` di setiap command Artisan, contoh:
 > ```bash
@@ -151,13 +157,16 @@ Akun admin default yang akan dibuat:
 
 ---
 
-## 6. Storage Link (untuk Upload KTP)
+## 6. Storage & File Upload
 
-Endpoint `POST /api/public/leads` mengunggah file KTP ke `storage/app/public/ktp`. Buat symbolic link agar file bisa diakses publik:
+- **KTP** (`POST /api/public/leads`, `POST /api/admin/leads/{id}/ktp`) disimpan **privat** di disk `local` (`storage/app/private/ktp`) dan hanya bisa diunduh admin lewat `GET /api/admin/leads/{id}/ktp` atau admin panel.
+- **Gambar perumahan / tipe rumah** disimpan di disk `public`. Buat symbolic link agar bisa diakses publik:
 
 ```bash
 php artisan storage:link
 ```
+
+Pastikan `APP_URL` di `.env` sesuai alamat backend (mis. `http://127.0.0.1:8000`) karena dipakai untuk membentuk `gambar_url`.
 
 > Di Windows, command ini juga berfungsi (membuat symlink). Jika gagal karena permission, jalankan terminal/Command Prompt **sebagai Administrator**.
 
@@ -187,9 +196,24 @@ Aplikasi akan berjalan di `http://127.0.0.1:8000`.
 
 ---
 
-## 8. Dokumentasi API
+## 8. Admin Panel (Filament)
 
-Semua response API menggunakan format standar:
+Admin panel tersedia di `http://127.0.0.1:8000/admin` dan memakai data yang sama dengan API.
+
+- Login memakai **username** dari `tb_akun` (guard `admin`); hanya akun `role = admin` yang bisa masuk. Akun marketing/leads memakai aplikasi frontend.
+- **Dashboard**: statistik leads & unit, tabel leads terbaru.
+- **Properti → Perumahan**: CRUD perumahan + gambar, tipe rumah dikelola di dalam halaman edit perumahan. Kolom jumlah unit tersedia/booking/terjual.
+- **Properti → Kavling**: CRUD kavling, ubah status langsung dari tabel, filter per perumahan/blok/status. Status `Tersedia` otomatis melepas pembeli.
+- **Penjualan → Leads**: aksi **Validasi** (pilih marketing → akun portal dibuat dengan username = nomor HP, password tampil sekali di notifikasi), **Tolak**, **Unduh KTP**, upload KTP susulan di halaman detail. Lead tidak bisa dibuat manual (hanya dari form minat).
+- **Marketing → Akun Marketing / Report Marketing / Agenda**: kelola akun marketing; report dan agenda read-only (diisi marketing dari frontend).
+
+Aset Filament (`public/css|js|fonts/filament`) di-generate otomatis oleh `composer install` (`php artisan filament:upgrade`), tidak di-commit.
+
+---
+
+## 9. Dokumentasi API
+
+Kontrak lengkap (request, response, enum) ada di [`docs/arkanaproperty-api.yaml`](docs/arkanaproperty-api.yaml) (OpenAPI 3). Semua response memakai format:
 
 ```json
 {
@@ -199,54 +223,69 @@ Semua response API menggunakan format standar:
 }
 ```
 
+Konvensi: field snake_case berbahasa Indonesia, uang dikirim sebagai integer rupiah, enum dikirim sebagai value + `*_label`, error validasi 422 dengan `message: "Validation failed"` dan `data` berisi error per field.
+
 ### Auth
 
-| Method | Endpoint            | Akses  | Deskripsi                          |
-|--------|---------------------|--------|-------------------------------------|
-| POST   | `/api/auth/login`   | Public | Login (admin/marketing/leads), return Sanctum token |
-| POST   | `/api/auth/logout`  | Auth   | Revoke token aktif                  |
+| Method | Endpoint            | Akses  | Deskripsi |
+|--------|---------------------|--------|-----------|
+| POST   | `/api/auth/login`   | Public | Login (admin/marketing/leads), return Sanctum token. Leads login dengan username = nomor HP |
+| GET    | `/api/auth/me`      | Auth   | Akun yang sedang login |
+| POST   | `/api/auth/logout`  | Auth   | Revoke token aktif |
 
 ### Tamu / Public
 
 | Method | Endpoint                     | Deskripsi |
 |--------|-------------------------------|-----------|
-| GET    | `/api/public/perumahan`       | Katalog perumahan. Query filter: `lokasi`, `min_budget`, `max_budget`, `lama_angsuran`, `jenis_rumah` |
-| GET    | `/api/public/perumahan/{id}`  | Detail perumahan, termasuk tipe rumah & kavling tersedia |
-| POST   | `/api/public/leads`           | Submit form ketertarikan (`id_perumahan`, `nama_calon`, `no_telp`, `file_ktp`) |
+| GET    | `/api/public/filters`         | Opsi filter katalog (lokasi, jenis rumah, rentang harga) |
+| GET    | `/api/public/perumahan`       | Katalog. Query: `lokasi`, `jenis_rumah`, `min_budget`, `max_budget`, `max_cicilan` |
+| GET    | `/api/public/perumahan/{id}`  | Detail perumahan + tipe rumah + kavling + jumlah unit |
+| GET    | `/api/public/tipe-rumah/{id}` | Detail tipe rumah (halaman detail properti) |
+| POST   | `/api/public/leads`           | Form ketertarikan (`id_tipe`/`id_perumahan`, `nama_calon`, `no_telp`, `pesan`, `file_ktp` opsional) |
 
 ### Admin (`auth:sanctum`, `role:admin`)
 
 | Method | Endpoint                          | Deskripsi |
 |--------|-------------------------------------|-----------|
-| GET    | `/api/admin/perumahan`              | List semua perumahan |
+| GET    | `/api/admin/dashboard`              | Statistik leads & unit, leads/report terbaru |
+| GET    | `/api/admin/perumahan`              | List perumahan + tipe rumah + jumlah unit per status |
 | POST   | `/api/admin/perumahan`              | Tambah perumahan + tipe rumah |
-| POST   | `/api/admin/tipe-rumah/{idTipe}/kavling` | Tambah kavling ke tipe rumah (`nomor_kavling`, `status` opsional) |
-| PUT    | `/api/admin/kavling/{id}`           | Update status kavling (`tersedia` / `terjual`) |
-| GET    | `/api/admin/leads`                  | List semua leads |
-| POST   | `/api/admin/leads/{id}/validate`    | Validasi KTP. Jika `is_valid=true`, sistem otomatis membuat akun `tb_akun` (role `leads`), assign `id_marketing`, dan update `id_akun_leads` |
-| GET    | `/api/admin/reports`                | Rekap report harian marketing |
-| GET    | `/api/admin/marketing`              | List semua akun marketing |
-| POST   | `/api/admin/marketing`              | Buat akun marketing baru (`username`, `password`, `nama`, `no_telp`) |
+| GET    | `/api/admin/perumahan/{id}`         | Detail perumahan |
+| GET    | `/api/admin/kavling`                | List kavling. Query: `id_perumahan`, `id_tipe`, `blok`, `status`, `search` |
+| POST   | `/api/admin/tipe-rumah/{idTipe}/kavling` | Tambah kavling (`blok`, `nomor_kavling`, `status`) |
+| PUT    | `/api/admin/kavling/{id}`           | Update status (`tersedia`/`booking`/`terjual`), pembeli (`id_leads`), blok/nomor |
+| GET    | `/api/admin/leads`                  | List leads. Query: `status`, `search` |
+| GET    | `/api/admin/leads/{id}`             | Detail lead |
+| POST   | `/api/admin/leads/{id}/validate`    | Validasi (KTP wajib ada) atau tolak lead. Validasi membuat/memakai akun leads dengan username = nomor HP dan mengembalikan password sekali |
+| POST   | `/api/admin/leads/{id}/ktp`         | Upload/ganti KTP |
+| GET    | `/api/admin/leads/{id}/ktp`         | Unduh KTP |
+| GET    | `/api/admin/reports`                | Rekap report marketing. Query: `id_marketing`, `from`, `to` |
+| GET    | `/api/admin/marketing`              | List akun marketing |
+| POST   | `/api/admin/marketing`              | Buat akun marketing |
 
 ### Marketing (`auth:sanctum`, `role:marketing`)
 
 | Method | Endpoint                      | Deskripsi |
 |--------|--------------------------------|-----------|
-| GET    | `/api/marketing/leads`         | List leads yang ditugaskan ke marketing login |
-| GET    | `/api/marketing/leads/{id}`    | Detail leads yang ditugaskan |
-| POST   | `/api/marketing/calendar`      | Buat agenda/reminder untuk leads (`id_leads`, `tanggal_kegiatan`, `deskripsi_agenda`) |
-| POST   | `/api/marketing/reports`       | Submit report harian (`tanggal_report`, `deskripsi_progres`) |
+| GET    | `/api/marketing/leads`         | Leads yang ditugaskan |
+| GET    | `/api/marketing/leads/{id}`    | Detail lead yang ditugaskan |
+| PATCH  | `/api/marketing/leads/{id}`    | Update `prioritas` & `catatan` |
+| GET    | `/api/marketing/calendar`      | Agenda milik sendiri. Query: `from`, `to` |
+| POST   | `/api/marketing/calendar`      | Buat agenda (`id_lead`, `judul`, `jenis`, `tanggal_kegiatan`, `lokasi`, `deskripsi_agenda`) |
+| GET    | `/api/marketing/reports`       | Riwayat report milik sendiri |
+| POST   | `/api/marketing/reports`       | Submit report (`tanggal_report`, `id_lead`, `jenis_aktivitas`, `deskripsi_progres`) |
 
-### Leads (`auth:sanctum`, `role:leads`)
+### Leads / Portal Konsumen (`auth:sanctum`, `role:leads`)
 
 | Method | Endpoint                       | Deskripsi |
 |--------|----------------------------------|-----------|
-| GET    | `/api/leads/calendar`            | Agenda/reminder yang akan datang |
-| GET    | `/api/leads/marketing-contact`   | Kontak marketing yang ditugaskan (nama & no. WA) |
+| GET    | `/api/leads/profile`             | Akun, lead, unit, marketing & timeline pembelian |
+| GET    | `/api/leads/calendar`            | Agenda mendatang (`?semua=1` untuk semua) |
+| GET    | `/api/leads/marketing-contact`   | Kontak marketing (nama, no. WA, link wa.me) |
 
 ---
 
-## 9. Testing Cepat dengan cURL
+## 10. Testing Cepat dengan cURL
 
 Login sebagai admin:
 
@@ -265,7 +304,7 @@ curl http://127.0.0.1:8000/api/admin/perumahan \
 
 ---
 
-## 10. Troubleshooting
+## 11. Troubleshooting
 
 | Masalah | Solusi |
 |---------|--------|
@@ -273,4 +312,4 @@ curl http://127.0.0.1:8000/api/admin/perumahan \
 | `SQLSTATE[08006] could not connect to server` | Cek kembali `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD` di `.env`, serta koneksi internet. |
 | Response HTML 404/500 padahal endpoint API | Pastikan `routes/api.php` ter-load (cek `php artisan route:list`) dan request mengarah ke `/api/...`. |
 | `Route [login] not defined` saat akses tanpa token | Sudah ditangani via custom exception handler di `bootstrap/app.php`, akan otomatis return JSON `401 Unauthenticated`. |
-| Upload KTP tidak bisa diakses via URL | Jalankan `php artisan storage:link`. |
+| Gambar perumahan tidak tampil | Jalankan `php artisan storage:link` dan pastikan `APP_URL` benar. KTP memang tidak bisa diakses via URL publik; unduh lewat `GET /api/admin/leads/{id}/ktp`. |
