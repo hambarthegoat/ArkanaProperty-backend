@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Laravel\Sanctum\HasApiTokens;
 
 class Akun extends Authenticatable
 {
-    use HasApiTokens;
+    use HasApiTokens, HasFactory;
 
     protected $table = 'tb_akun';
 
@@ -29,6 +30,21 @@ class Akun extends Authenticatable
         return [
             'password' => 'hashed',
         ];
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
+    }
+
+    public function isMarketing(): bool
+    {
+        return $this->role === 'marketing';
+    }
+
+    public function isLeads(): bool
+    {
+        return $this->role === 'leads';
     }
 
     public function leadsAsMarketing(): HasMany
