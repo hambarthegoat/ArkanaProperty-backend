@@ -21,6 +21,18 @@ class Kavling extends Model
         'id_leads',
     ];
 
+    /**
+     * An available unit has no buyer, whichever client changes the status.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (Kavling $kavling) {
+            if ($kavling->status === KavlingStatus::Tersedia) {
+                $kavling->id_leads = null;
+            }
+        });
+    }
+
     protected function casts(): array
     {
         return [
