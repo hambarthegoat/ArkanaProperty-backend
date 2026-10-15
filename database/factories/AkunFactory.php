@@ -35,9 +35,9 @@ class AkunFactory extends Factory
 
     public function leads(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state([
             'role' => 'leads',
-            'username' => $attributes['no_telp'],
+            'username' => fn (array $attributes) => $attributes['no_telp'],
         ]);
     }
 }
