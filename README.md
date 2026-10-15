@@ -1,12 +1,12 @@
 # ArkanaProperty Backend
 
-Backend REST API untuk **ArkanaProperty** — sistem Property Marketing & CRM untuk perusahaan developer (PT). Dibangun dengan **Laravel 11**, **PHP 8.2+**, autentikasi **Laravel Sanctum**, dan database **PostgreSQL** (Supabase).
+Backend REST API untuk **ArkanaProperty** — sistem Property Marketing & CRM untuk perusahaan developer (PT). Dibangun dengan **Laravel 13**, **PHP 8.3+**, autentikasi **Laravel Sanctum**, dan database **PostgreSQL** (Supabase).
 
 ---
 
 ## 1. Requirements
 
-- PHP **8.2 atau lebih baru** (disarankan 8.3/8.4)
+- PHP **8.3 atau lebih baru** (`composer.json` mengunci platform ke PHP 8.3 agar `composer install` jalan di 8.3 maupun 8.4)
 - Ekstensi PHP wajib:
   - `pdo_pgsql` dan `pgsql` (driver PostgreSQL)
   - `mbstring`, `openssl`, `tokenizer`, `xml`, `ctype`, `json`, `bcmath`, `curl`, `fileinfo`

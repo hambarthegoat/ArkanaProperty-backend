@@ -1,8 +1,15 @@
 <?php
 
+use App\Http\Middleware\RoleMiddleware;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Auth\AuthenticationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Validation\ValidationException;
+use Symfony\Component\Routing\Exception\ResourceNotFoundException;
+use Symfony\Component\Routing\Exception\RouteNotFoundException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -13,7 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
-            'role' => \App\Http\Middleware\RoleMiddleware::class,
+            'role' => RoleMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
@@ -21,29 +28,29 @@ return Application::configure(basePath: dirname(__DIR__))
             return $request->is('api/*') || $request->expectsJson();
         });
 
-        $exceptions->render(function (\Throwable $e, $request) {
+        $exceptions->render(function (Throwable $e, $request) {
             if (! $request->is('api/*') && ! $request->expectsJson()) {
                 return null;
             }
 
             $status = match (true) {
-                $e instanceof \Illuminate\Auth\AuthenticationException,
-                $e instanceof \Symfony\Component\Routing\Exception\RouteNotFoundException => 401,
-                $e instanceof \Illuminate\Auth\Access\AuthorizationException => 403,
-                $e instanceof \Illuminate\Validation\ValidationException => 422,
-                $e instanceof \Illuminate\Database\Eloquent\ModelNotFoundException,
-                $e instanceof \Symfony\Component\Routing\Exception\ResourceNotFoundException => 404,
+                $e instanceof AuthenticationException,
+                $e instanceof RouteNotFoundException => 401,
+                $e instanceof AuthorizationException => 403,
+                $e instanceof ValidationException => 422,
+                $e instanceof ModelNotFoundException,
+                $e instanceof ResourceNotFoundException => 404,
                 method_exists($e, 'getStatusCode') => $e->getStatusCode(),
                 default => 500,
             };
 
-            $message = $e instanceof \Symfony\Component\Routing\Exception\RouteNotFoundException
+            $message = $e instanceof RouteNotFoundException
                 ? 'Unauthenticated.'
                 : ($e->getMessage() ?: 'Server error');
 
             return response()->json([
                 'success' => false,
-                'data' => $e instanceof \Illuminate\Validation\ValidationException ? $e->errors() : null,
+                'data' => $e instanceof ValidationException ? $e->errors() : null,
                 'message' => $message,
             ], $status);
         });
