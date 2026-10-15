@@ -2,9 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Models\Akun;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
 {
@@ -13,13 +11,9 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        Akun::firstOrCreate(
-            ['username' => 'admin'],
-            [
-                'password' => Hash::make('password'),
-                'role' => 'admin',
-                'nama' => 'Administrator',
-            ]
-        );
+        $this->call([
+            AdminSeeder::class,
+            DemoDataSeeder::class,
+        ]);
     }
 }
