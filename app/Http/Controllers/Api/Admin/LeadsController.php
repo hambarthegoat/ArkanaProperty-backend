@@ -2,28 +2,61 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
+use App\Enums\LeadStatus;
+use App\Exceptions\LeadValidationException;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\LeadsResource;
 use App\Models\Akun;
 use App\Models\Leads;
+use App\Services\LeadValidationService;
 use App\Traits\ApiResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 
 class LeadsController extends Controller
 {
     use ApiResponse;
 
-    public function index()
-    {
-        $leads = Leads::with(['perumahan', 'marketing', 'akunLeads'])->latest()->get();
+    private const RELATIONS = ['perumahan', 'tipeRumah', 'marketing', 'akunLeads', 'kavling'];
 
-        return $this->success($leads, 'Leads retrieved successfully');
+    public function index(Request $request)
+    {
+        $request->validate([
+            'status' => ['nullable', Rule::enum(LeadStatus::class)],
+            'search' => 'nullable|string|max:100',
+        ]);
+
+        $leads = Leads::with(self::RELATIONS)
+            ->when($request->filled('status'), fn ($q) => $q->where('status_keseriusan', $request->status))
+            ->when($request->filled('search'), function ($q) use ($request) {
+                $q->where(function ($q) use ($request) {
+                    $q->whereLike('nama_calon', '%'.$request->search.'%')
+                        ->orWhereLike('no_telp', '%'.$request->search.'%');
+                });
+            })
+            ->latest()
+            ->get();
+
+        return $this->success(LeadsResource::collection($leads), 'Leads retrieved successfully');
     }
 
-    public function validateLead(Request $request, string $id)
+    public function show(string $id)
+    {
+        $leads = Leads::with([...self::RELATIONS, 'reports.marketing'])->find($id);
+
+        if (! $leads) {
+            return $this->error('Lead not found', 404);
+        }
+
+        return $this->success(new LeadsResource($leads), 'Lead detail retrieved successfully');
+    }
+
+    /**
+     * is_valid=true validates the KTP, creates (or reuses) the leads portal
+     * account and assigns marketing; is_valid=false rejects the lead.
+     */
+    public function validateLead(Request $request, string $id, LeadValidationService $service)
     {
         $leads = Leads::find($id);
 
@@ -31,45 +64,59 @@ class LeadsController extends Controller
             return $this->error('Lead not found', 404);
         }
 
-        $validator = Validator::make($request->all(), [
+        $request->validate([
             'is_valid' => 'required|boolean',
-            'id_marketing' => 'required_if:is_valid,true|integer|exists:tb_akun,id',
+            'id_marketing' => 'required_if:is_valid,true|nullable|integer|exists:tb_akun,id',
         ]);
 
-        if ($validator->fails()) {
-            return $this->error('Validation failed', 422, $validator->errors());
+        try {
+            if (! $request->boolean('is_valid')) {
+                $service->reject($leads);
+
+                return $this->success(new LeadsResource($leads->load(self::RELATIONS)), 'Lead has been marked as rejected');
+            }
+
+            $result = $service->validate($leads, Akun::findOrFail($request->id_marketing));
+        } catch (LeadValidationException $e) {
+            return $this->error($e->getMessage(), 422);
         }
 
-        if (! $request->boolean('is_valid')) {
-            $leads->update(['status_keseriusan' => 'rejected']);
+        return $this->success([
+            'lead' => new LeadsResource($result['lead']->load(self::RELATIONS)),
+            'kredensial' => $result['kredensial'],
+        ], 'KTP validated, leads account ready and marketing assigned successfully');
+    }
 
-            return $this->success($leads, 'Lead has been marked as rejected');
+    public function uploadKtp(Request $request, string $id)
+    {
+        $leads = Leads::find($id);
+
+        if (! $leads) {
+            return $this->error('Lead not found', 404);
         }
 
-        $marketing = Akun::where('id', $request->id_marketing)->where('role', 'marketing')->first();
+        $request->validate([
+            'file_ktp' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
+        ]);
 
-        if (! $marketing) {
-            return $this->error('Selected account is not a valid marketing account', 422);
+        $old = $leads->file_ktp;
+        $leads->update(['file_ktp' => $request->file('file_ktp')->store('ktp', 'local')]);
+
+        if ($old) {
+            Storage::disk('local')->delete($old);
         }
 
-        $leads = DB::transaction(function () use ($leads, $marketing) {
-            $username = 'leads_'.Str::slug($leads->nama_calon).'_'.$leads->id;
+        return $this->success(new LeadsResource($leads->load(self::RELATIONS)), 'KTP uploaded successfully');
+    }
 
-            $akunLeads = Akun::create([
-                'username' => $username,
-                'password' => Hash::make($leads->no_telp),
-                'role' => 'leads',
-            ]);
+    public function downloadKtp(string $id)
+    {
+        $leads = Leads::find($id);
 
-            $leads->update([
-                'id_akun_leads' => $akunLeads->id,
-                'id_marketing' => $marketing->id,
-                'status_keseriusan' => 'validated',
-            ]);
+        if (! $leads || ! $leads->hasKtp() || ! Storage::disk('local')->exists($leads->file_ktp)) {
+            return $this->error('KTP not found', 404);
+        }
 
-            return $leads->load(['perumahan', 'marketing', 'akunLeads']);
-        });
-
-        return $this->success($leads, 'KTP validated, leads account created and marketing assigned successfully');
+        return Storage::disk('local')->response($leads->file_ktp);
     }
 }
