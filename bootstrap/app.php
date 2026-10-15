@@ -28,8 +28,10 @@ return Application::configure(basePath: dirname(__DIR__))
             return $request->is('api/*') || $request->expectsJson();
         });
 
+        // Only API routes get the {success, data, message} envelope; web
+        // routes (admin panel) keep Laravel's default rendering.
         $exceptions->render(function (Throwable $e, $request) {
-            if (! $request->is('api/*') && ! $request->expectsJson()) {
+            if (! $request->is('api/*')) {
                 return null;
             }
 
@@ -44,9 +46,13 @@ return Application::configure(basePath: dirname(__DIR__))
                 default => 500,
             };
 
-            $message = $e instanceof RouteNotFoundException
-                ? 'Unauthenticated.'
-                : ($e->getMessage() ?: 'Server error');
+            $message = match (true) {
+                $e instanceof RouteNotFoundException => 'Unauthenticated.',
+                $e instanceof ValidationException => 'Validation failed',
+                $e instanceof ModelNotFoundException => 'Data not found',
+                $status >= 500 && ! config('app.debug') => 'Server error',
+                default => $e->getMessage() ?: 'Server error',
+            };
 
             return response()->json([
                 'success' => false,

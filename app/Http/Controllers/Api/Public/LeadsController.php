@@ -3,38 +3,44 @@
 namespace App\Http\Controllers\Api\Public;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\LeadsResource;
 use App\Models\Leads;
+use App\Models\TipeRumah;
+use App\Support\Phone;
 use App\Traits\ApiResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
 
 class LeadsController extends Controller
 {
     use ApiResponse;
 
+    /**
+     * Interest form from the landing / property pages. KTP is optional
+     * here; admins can attach it later before validating the lead.
+     */
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'id_perumahan' => 'required|integer|exists:tb_perumahan,id',
+        $request->validate([
+            'id_perumahan' => 'required_without:id_tipe|nullable|integer|exists:tb_perumahan,id',
+            'id_tipe' => 'nullable|integer|exists:tb_tipe_rumah,id',
             'nama_calon' => 'required|string|max:255',
-            'no_telp' => 'required|string|max:20',
-            'file_ktp' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'no_telp' => ['required', 'string', 'max:20', 'regex:/^[0-9+\-\s()]{8,20}$/'],
+            'pesan' => 'nullable|string|max:2000',
+            'file_ktp' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
         ]);
 
-        if ($validator->fails()) {
-            return $this->error('Validation failed', 422, $validator->errors());
-        }
-
-        $path = $request->file('file_ktp')->store('ktp', 'public');
+        $tipe = $request->filled('id_tipe') ? TipeRumah::find($request->id_tipe) : null;
 
         $leads = Leads::create([
-            'id_perumahan' => $request->id_perumahan,
+            'id_perumahan' => $tipe?->id_perumahan ?? $request->id_perumahan,
+            'id_tipe' => $tipe?->id,
             'nama_calon' => $request->nama_calon,
-            'no_telp' => $request->no_telp,
-            'file_ktp' => $path,
+            'no_telp' => Phone::normalize($request->no_telp),
+            'pesan' => $request->pesan,
+            'file_ktp' => $request->file('file_ktp')?->store('ktp', 'local'),
             'status_keseriusan' => 'pending',
         ]);
 
-        return $this->success($leads, 'Form ketertarikan submitted successfully', 201);
+        return $this->success(new LeadsResource($leads), 'Form ketertarikan submitted successfully', 201);
     }
 }
