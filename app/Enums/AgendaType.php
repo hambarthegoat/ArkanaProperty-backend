@@ -2,7 +2,10 @@
 
 namespace App\Enums;
 
-enum AgendaType: string
+use Filament\Support\Contracts\HasColor;
+use Filament\Support\Contracts\HasLabel;
+
+enum AgendaType: string implements HasColor, HasLabel
 {
     case Survey = 'survey';
     case FollowUp = 'follow_up';
@@ -16,6 +19,21 @@ enum AgendaType: string
             self::FollowUp => 'Follow Up',
             self::Closing => 'Closing',
             self::Lainnya => 'Lainnya',
+        };
+    }
+
+    public function getLabel(): string
+    {
+        return $this->label();
+    }
+
+    public function getColor(): string
+    {
+        return match ($this) {
+            self::Survey => 'info',
+            self::FollowUp => 'primary',
+            self::Closing => 'success',
+            self::Lainnya => 'gray',
         };
     }
 }
