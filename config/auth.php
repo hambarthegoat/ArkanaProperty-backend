@@ -1,5 +1,8 @@
 <?php
 
+use App\Models\Akun;
+use App\Models\User;
+
 return [
 
     /*
@@ -67,12 +70,12 @@ return [
     'providers' => [
         'users' => [
             'driver' => 'eloquent',
-            'model' => env('AUTH_MODEL', App\Models\User::class),
+            'model' => env('AUTH_MODEL', User::class),
         ],
 
         'akun' => [
             'driver' => 'eloquent',
-            'model' => App\Models\Akun::class,
+            'model' => Akun::class,
         ],
 
         // 'users' => [
@@ -114,7 +117,7 @@ return [
     | Password Confirmation Timeout
     |--------------------------------------------------------------------------
     |
-    | Here you may define the amount of seconds before a password confirmation
+    | Here you may define the number of seconds before a password confirmation
     | window expires and users are asked to re-enter their password via the
     | confirmation screen. By default, the timeout lasts for three hours.
     |
