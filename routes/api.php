@@ -11,7 +11,6 @@ use App\Http\Controllers\Api\Leads\MarketingController as LeadsMarketingControll
 use App\Http\Controllers\Api\Marketing\CalendarController as MarketingCalendarController;
 use App\Http\Controllers\Api\Marketing\LeadsController as MarketingLeadsController;
 use App\Http\Controllers\Api\Marketing\ReportController as MarketingReportController;
-use App\Http\Controllers\Api\Public\LeadsController as PublicLeadsController;
 use App\Http\Controllers\Api\Public\PerumahanController as PublicPerumahanController;
 use Illuminate\Support\Facades\Route;
 
