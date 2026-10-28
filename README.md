@@ -159,7 +159,7 @@ Akun yang dibuat seeder:
 
 ## 6. Storage & File Upload
 
-- **KTP** (diunggah marketing lewat `POST /api/marketing/leads/{id}/ktp`; form publik tidak meminta KTP) disimpan **privat** di disk `local` (`storage/app/private/ktp`) dan hanya bisa diunduh admin lewat `GET /api/admin/leads/{id}/ktp` atau admin panel.
+- **KTP** (diunggah marketing yang ditugaskan lewat `POST /api/marketing/leads/{id}/ktp`; form publik tidak meminta KTP) disimpan **privat** di disk `local` (`storage/app/private/ktp`) dan hanya bisa diunduh admin lewat `GET /api/admin/leads/{id}/ktp` atau admin panel.
 - **Gambar perumahan / tipe rumah** disimpan di disk `public`. Buat symbolic link agar bisa diakses publik:
 
 ```bash
@@ -204,7 +204,7 @@ Admin panel tersedia di `http://127.0.0.1:8000/admin` dan memakai data yang sama
 - **Dashboard**: statistik leads & unit, tabel leads terbaru.
 - **Properti → Perumahan**: CRUD perumahan + gambar, tipe rumah dikelola di dalam halaman edit perumahan. Kolom jumlah unit tersedia/booking/terjual.
 - **Properti → Kavling**: CRUD kavling, ubah status langsung dari tabel, filter per perumahan/blok/status. Status `Tersedia` otomatis melepas pembeli.
-- **Penjualan → Leads**: aksi **Validasi** (pilih marketing → akun portal dibuat dengan username = nomor HP, password tampil sekali di notifikasi), **Tolak**, **Unduh KTP** (KTP diunggah oleh marketing, bukan admin). Lead tidak bisa dibuat manual (hanya dari form minat).
+- **Penjualan → Leads**: aksi **Tugaskan** (pilih marketing yang mengumpulkan KTP), aksi **Validasi** (pilih marketing → akun portal dibuat dengan username = nomor HP, password tampil sekali di notifikasi), **Tolak**, **Unduh KTP** (KTP diunggah oleh marketing, bukan admin). Lead tidak bisa dibuat manual (hanya dari form minat).
 - **Marketing → Akun Marketing / Report Marketing / Agenda**: kelola akun marketing; report dan agenda read-only (diisi marketing dari frontend).
 
 Aset Filament (`public/css|js|fonts/filament`) di-generate otomatis oleh `composer install` (`php artisan filament:upgrade`), tidak di-commit.
@@ -256,7 +256,8 @@ Konvensi: field snake_case berbahasa Indonesia, uang dikirim sebagai integer rup
 | PUT    | `/api/admin/kavling/{id}`           | Update status (`tersedia`/`booking`/`terjual`), pembeli (`id_leads`), blok/nomor |
 | GET    | `/api/admin/leads`                  | List leads. Query: `status`, `search` |
 | GET    | `/api/admin/leads/{id}`             | Detail lead |
-| POST   | `/api/admin/leads/{id}/validate`    | Validasi (KTP wajib ada; `id_marketing` opsional jika sudah ada marketing yang mengunggah KTP) atau tolak lead. Validasi membuat/memakai akun leads dengan username = nomor HP dan mengembalikan password sekali |
+| POST   | `/api/admin/leads/{id}/assign`      | Tugaskan lead pending ke marketing (`id_marketing`) |
+| POST   | `/api/admin/leads/{id}/validate`    | Validasi (KTP wajib ada; `id_marketing` opsional jika lead sudah ditugaskan) atau tolak lead. Validasi membuat/memakai akun leads dengan username = nomor HP dan mengembalikan password sekali |
 | GET    | `/api/admin/leads/{id}/ktp`         | Unduh KTP |
 | GET    | `/api/admin/reports`                | Rekap report marketing. Query: `id_marketing`, `from`, `to` |
 | GET    | `/api/admin/marketing`              | List akun marketing |
@@ -266,8 +267,8 @@ Konvensi: field snake_case berbahasa Indonesia, uang dikirim sebagai integer rup
 
 | Method | Endpoint                      | Deskripsi |
 |--------|--------------------------------|-----------|
-| GET    | `/api/marketing/leads`         | Leads yang ditugaskan + antrean lead baru (pending, belum ada marketing) |
-| POST   | `/api/marketing/leads/{id}/ktp` | Upload/ganti KTP (multipart `file_ktp`). Mengunggah ke lead antrean mengklaimnya |
+| GET    | `/api/marketing/leads`         | Leads yang ditugaskan admin (termasuk pending yang menunggu KTP) |
+| POST   | `/api/marketing/leads/{id}/ktp` | Upload/ganti KTP lead yang ditugaskan (multipart `file_ktp`) |
 | GET    | `/api/marketing/leads/{id}`    | Detail lead yang ditugaskan |
 | PATCH  | `/api/marketing/leads/{id}`    | Update `prioritas` & `catatan` |
 | GET    | `/api/marketing/calendar`      | Agenda milik sendiri. Query: `from`, `to` |

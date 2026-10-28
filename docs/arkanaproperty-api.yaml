@@ -338,9 +338,9 @@ paths:
       summary: Submit form ketertarikan (jadi leads baru, status pending)
       description: |
         Kirim `id_tipe` (disarankan) atau `id_perumahan`. Nomor HP dinormalisasi
-        ke format 08…. KTP tidak diminta di form ini; marketing yang mengunggahnya
-        (`POST /marketing/leads/{id}/ktp`) dan lead hanya bisa divalidasi admin
-        setelah KTP ada. Dibatasi 10 request/menit.
+        ke format 08…. KTP tidak diminta di form ini. Alurnya: admin menugaskan lead ke marketing
+        (`POST /admin/leads/{id}/assign`), marketing mengunggah KTP
+        (`POST /marketing/leads/{id}/ktp`), lalu admin memvalidasi lead setelah KTP ada. Dibatasi 10 request/menit.
       requestBody:
         required: true
         content:
@@ -528,6 +528,30 @@ paths:
         '200': { description: "data = Leads" }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /admin/leads/{id}/assign:
+    post:
+      tags: [Admin]
+      summary: Tugaskan lead pending ke marketing (marketing lalu mengunggah KTP)
+      description: |
+        Bisa diulang untuk mengganti marketing selama lead masih `pending`.
+        Lead yang sudah `validated` atau `rejected` mengembalikan 422.
+      security: [{ sanctumToken: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id_marketing]
+              properties:
+                id_marketing: { type: integer, example: 2 }
+      responses:
+        '200': { description: "data = Leads (id_marketing terisi, status tetap pending)" }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { description: "Akun bukan marketing, lead sudah divalidasi/ditolak, atau input tidak valid" }
+
   /admin/leads/{id}/validate:
     post:
       tags: [Admin]
@@ -540,7 +564,7 @@ paths:
         - Jika akun leads dengan nomor itu sudah ada, akun tersebut dipakai ulang
           (`kredensial.password = null`, `akun_baru = false`).
         - `id_marketing` diisi, `status_keseriusan` menjadi `validated`.
-          Jika `id_marketing` tidak dikirim, dipakai marketing yang sudah mengunggah KTP.
+          Jika `id_marketing` tidak dikirim, dipakai marketing yang sudah ditugaskan.
 
         Jika `is_valid = false`, `status_keseriusan` menjadi `rejected`.
       security: [{ sanctumToken: [] }]
@@ -555,7 +579,7 @@ paths:
               required: [is_valid]
               properties:
                 is_valid: { type: boolean, example: true }
-                id_marketing: { type: integer, description: "Wajib jika is_valid = true dan lead belum punya marketing (belum ada yang mengunggah KTP)", example: 2 }
+                id_marketing: { type: integer, description: "Wajib jika is_valid = true dan lead belum ditugaskan ke marketing", example: 2 }
       responses:
         '200':
           description: Lead divalidasi / ditolak
@@ -627,10 +651,7 @@ paths:
   /marketing/leads:
     get:
       tags: [Marketing]
-      summary: Leads milik marketing login + antrean lead baru (pending, belum ada marketing)
-      description: |
-        Lead antrean berisi `id_marketing = null`. Marketing mengambilnya dengan
-        mengunggah KTP (`POST /marketing/leads/{id}/ktp`).
+      summary: Leads yang ditugaskan admin ke marketing login (termasuk yang pending dan menunggu KTP)
       security: [{ sanctumToken: [] }]
       responses:
         '200': { description: "data = Leads[]" }
@@ -669,9 +690,8 @@ paths:
       tags: [Marketing]
       summary: Upload / ganti KTP lead (hanya marketing)
       description: |
-        Hanya untuk lead milik marketing ini atau lead antrean (pending, belum ada
-        marketing). Mengunggah ke lead antrean otomatis mengklaimnya
-        (`id_marketing` = marketing login). Lead yang sudah ditolak mengembalikan 422.
+        Hanya untuk lead yang ditugaskan ke marketing login. Lead yang sudah ditolak
+        mengembalikan 422.
       security: [{ sanctumToken: [] }]
       parameters:
         - { name: id, in: path, required: true, schema: { type: integer } }
@@ -686,7 +706,7 @@ paths:
                 file_ktp: { type: string, format: binary, description: "jpg/jpeg/png/pdf, maks 5MB" }
       responses:
         '200': { description: "data = Leads (has_ktp = true)" }
-        '404': { description: Lead tidak ditemukan / milik marketing lain }
+        '404': { description: Lead tidak ditemukan / tidak ditugaskan ke marketing ini }
         '422': { description: Validasi file gagal atau lead sudah ditolak }
 
   /marketing/calendar:

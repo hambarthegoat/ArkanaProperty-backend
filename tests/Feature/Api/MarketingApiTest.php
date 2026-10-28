@@ -45,30 +45,36 @@ class MarketingApiTest extends TestCase
         $this->getJson("/api/marketing/leads/{$other->id}")->assertNotFound();
     }
 
-    public function test_queue_of_new_unclaimed_leads_is_listed(): void
-    {
-        $queued = Leads::factory()->create(['status_keseriusan' => 'pending', 'id_marketing' => null]);
-        Leads::factory()->create(['status_keseriusan' => 'rejected', 'id_marketing' => null]);
-
-        $ids = collect($this->getJson('/api/marketing/leads')->assertOk()->json('data'))->pluck('id');
-
-        $this->assertCount(2, $ids);
-        $this->assertTrue($ids->contains($queued->id));
-    }
-
-    public function test_uploading_ktp_to_a_queued_lead_claims_it(): void
+    public function test_assigned_pending_lead_is_listed_and_accepts_ktp(): void
     {
         Storage::fake('local');
-        $queued = Leads::factory()->create(['status_keseriusan' => 'pending', 'id_marketing' => null]);
+        $pending = Leads::factory()->create(['status_keseriusan' => 'pending', 'id_marketing' => $this->marketing->id]);
 
-        $this->post("/api/marketing/leads/{$queued->id}/ktp", ['file_ktp' => UploadedFile::fake()->image('ktp.png')], ['Accept' => 'application/json'])
+        $ids = collect($this->getJson('/api/marketing/leads')->assertOk()->json('data'))->pluck('id');
+        $this->assertTrue($ids->contains($pending->id));
+
+        $this->post("/api/marketing/leads/{$pending->id}/ktp", ['file_ktp' => UploadedFile::fake()->image('ktp.png')], ['Accept' => 'application/json'])
             ->assertOk()
             ->assertJsonPath('data.has_ktp', true)
-            ->assertJsonPath('data.id_marketing', $this->marketing->id)
+            ->assertJsonPath('data.status_keseriusan', 'pending')
             ->assertJsonMissingPath('data.file_ktp');
 
-        Storage::disk('local')->assertExists($queued->fresh()->file_ktp);
-        $this->assertSame('pending', $queued->fresh()->status_keseriusan->value);
+        Storage::disk('local')->assertExists($pending->fresh()->file_ktp);
+    }
+
+    public function test_unassigned_pending_lead_is_hidden_and_cannot_receive_ktp(): void
+    {
+        Storage::fake('local');
+        $unassigned = Leads::factory()->create(['status_keseriusan' => 'pending', 'id_marketing' => null]);
+
+        $this->getJson('/api/marketing/leads')->assertOk()->assertJsonCount(1, 'data');
+
+        $this->post("/api/marketing/leads/{$unassigned->id}/ktp", ['file_ktp' => UploadedFile::fake()->image('ktp.png')], ['Accept' => 'application/json'])
+            ->assertNotFound();
+
+        $this->assertNull($unassigned->fresh()->id_marketing);
+        $this->assertFalse($unassigned->fresh()->hasKtp());
+        $this->assertSame([], Storage::disk('local')->allFiles());
     }
 
     public function test_replacing_ktp_removes_the_old_file(): void
@@ -93,19 +99,6 @@ class MarketingApiTest extends TestCase
 
         $this->assertFalse($other->fresh()->hasKtp());
         $this->assertSame([], Storage::disk('local')->allFiles());
-    }
-
-    public function test_cannot_claim_a_rejected_or_validated_unclaimed_lead(): void
-    {
-        Storage::fake('local');
-        $rejected = Leads::factory()->create(['status_keseriusan' => 'rejected', 'id_marketing' => null]);
-        $validated = Leads::factory()->create(['status_keseriusan' => 'validated', 'id_marketing' => null]);
-
-        foreach ([$rejected, $validated] as $lead) {
-            $this->post("/api/marketing/leads/{$lead->id}/ktp", ['file_ktp' => UploadedFile::fake()->image('ktp.png')], ['Accept' => 'application/json'])
-                ->assertNotFound();
-            $this->assertNull($lead->fresh()->id_marketing);
-        }
     }
 
     public function test_cannot_upload_ktp_to_own_rejected_lead(): void
