@@ -26,6 +26,7 @@ class LeadActions
             ->icon(Heroicon::OutlinedCheckBadge)
             ->color('success')
             ->visible(fn (Leads $record) => $record->status_keseriusan !== LeadStatus::Validated)
+            ->fillForm(fn (Leads $record) => ['id_marketing' => $record->id_marketing])
             ->modalHeading('Validasi KTP & tugaskan marketing')
             ->modalDescription('Akun portal konsumen dibuat dengan username = nomor HP. Password hanya ditampilkan sekali.')
             ->schema([

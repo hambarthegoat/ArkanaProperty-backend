@@ -30,7 +30,7 @@ class PublicLeadsTest extends TestCase
             ->assertJsonPath('data.no_telp', '081234567890');
     }
 
-    public function test_interest_form_stores_ktp_privately(): void
+    public function test_interest_form_ignores_ktp_upload(): void
     {
         Storage::fake('local');
         $tipe = TipeRumah::factory()->create();
@@ -42,10 +42,10 @@ class PublicLeadsTest extends TestCase
             'file_ktp' => UploadedFile::fake()->image('ktp.jpg'),
         ], ['Accept' => 'application/json'])
             ->assertCreated()
-            ->assertJsonPath('data.has_ktp', true)
-            ->assertJsonMissingPath('data.file_ktp');
+            ->assertJsonPath('data.has_ktp', false);
 
-        Storage::disk('local')->assertExists(Leads::first()->file_ktp);
+        $this->assertNull(Leads::first()->file_ktp);
+        $this->assertSame([], Storage::disk('local')->allFiles());
     }
 
     public function test_interest_form_requires_project_name_and_phone(): void

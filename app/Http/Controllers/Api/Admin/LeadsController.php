@@ -13,6 +13,7 @@ use App\Traits\ApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class LeadsController extends Controller
 {
@@ -53,8 +54,9 @@ class LeadsController extends Controller
     }
 
     /**
-     * is_valid=true validates the KTP, creates (or reuses) the leads portal
-     * account and assigns marketing; is_valid=false rejects the lead.
+     * is_valid=true validates the KTP (uploaded by marketing), creates (or
+     * reuses) the leads portal account and assigns marketing, defaulting to
+     * the marketing that uploaded the KTP; is_valid=false rejects the lead.
      */
     public function validateLead(Request $request, string $id, LeadValidationService $service)
     {
@@ -66,8 +68,14 @@ class LeadsController extends Controller
 
         $request->validate([
             'is_valid' => 'required|boolean',
-            'id_marketing' => 'required_if:is_valid,true|nullable|integer|exists:tb_akun,id',
+            'id_marketing' => 'nullable|integer|exists:tb_akun,id',
         ]);
+
+        $marketingId = $request->input('id_marketing') ?? $leads->id_marketing;
+
+        if ($request->boolean('is_valid') && $marketingId === null) {
+            throw ValidationException::withMessages(['id_marketing' => 'Marketing wajib dipilih.']);
+        }
 
         try {
             if (! $request->boolean('is_valid')) {
@@ -76,7 +84,7 @@ class LeadsController extends Controller
                 return $this->success(new LeadsResource($leads->load(self::RELATIONS)), 'Lead has been marked as rejected');
             }
 
-            $result = $service->validate($leads, Akun::findOrFail($request->id_marketing));
+            $result = $service->validate($leads, Akun::findOrFail($marketingId));
         } catch (LeadValidationException $e) {
             return $this->error($e->getMessage(), 422);
         }
@@ -85,28 +93,6 @@ class LeadsController extends Controller
             'lead' => new LeadsResource($result['lead']->load(self::RELATIONS)),
             'kredensial' => $result['kredensial'],
         ], 'KTP validated, leads account ready and marketing assigned successfully');
-    }
-
-    public function uploadKtp(Request $request, string $id)
-    {
-        $leads = Leads::find($id);
-
-        if (! $leads) {
-            return $this->error('Lead not found', 404);
-        }
-
-        $request->validate([
-            'file_ktp' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
-        ]);
-
-        $old = $leads->file_ktp;
-        $leads->update(['file_ktp' => $request->file('file_ktp')->store('ktp', 'local')]);
-
-        if ($old) {
-            Storage::disk('local')->delete($old);
-        }
-
-        return $this->success(new LeadsResource($leads->load(self::RELATIONS)), 'KTP uploaded successfully');
     }
 
     public function downloadKtp(string $id)

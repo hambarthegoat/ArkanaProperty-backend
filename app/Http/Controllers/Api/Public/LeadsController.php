@@ -15,8 +15,8 @@ class LeadsController extends Controller
     use ApiResponse;
 
     /**
-     * Interest form from the landing / property pages. KTP is optional
-     * here; admins can attach it later before validating the lead.
+     * Interest form from the landing / property pages. KTP is not collected
+     * here; marketing uploads it after contacting the lead.
      */
     public function store(Request $request)
     {
@@ -26,7 +26,6 @@ class LeadsController extends Controller
             'nama_calon' => 'required|string|max:255',
             'no_telp' => ['required', 'string', 'max:20', 'regex:/^[0-9+\-\s()]{8,20}$/'],
             'pesan' => 'nullable|string|max:2000',
-            'file_ktp' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
         ]);
 
         $tipe = $request->filled('id_tipe') ? TipeRumah::find($request->id_tipe) : null;
@@ -37,7 +36,6 @@ class LeadsController extends Controller
             'nama_calon' => $request->nama_calon,
             'no_telp' => Phone::normalize($request->no_telp),
             'pesan' => $request->pesan,
-            'file_ktp' => $request->file('file_ktp')?->store('ktp', 'local'),
             'status_keseriusan' => 'pending',
         ]);
 

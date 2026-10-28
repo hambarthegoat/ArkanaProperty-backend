@@ -5,6 +5,8 @@ namespace Tests\Feature\Api;
 use App\Models\Akun;
 use App\Models\Leads;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -41,6 +43,102 @@ class MarketingApiTest extends TestCase
 
         $other = Leads::where('id', '!=', $this->lead->id)->first();
         $this->getJson("/api/marketing/leads/{$other->id}")->assertNotFound();
+    }
+
+    public function test_queue_of_new_unclaimed_leads_is_listed(): void
+    {
+        $queued = Leads::factory()->create(['status_keseriusan' => 'pending', 'id_marketing' => null]);
+        Leads::factory()->create(['status_keseriusan' => 'rejected', 'id_marketing' => null]);
+
+        $ids = collect($this->getJson('/api/marketing/leads')->assertOk()->json('data'))->pluck('id');
+
+        $this->assertCount(2, $ids);
+        $this->assertTrue($ids->contains($queued->id));
+    }
+
+    public function test_uploading_ktp_to_a_queued_lead_claims_it(): void
+    {
+        Storage::fake('local');
+        $queued = Leads::factory()->create(['status_keseriusan' => 'pending', 'id_marketing' => null]);
+
+        $this->post("/api/marketing/leads/{$queued->id}/ktp", ['file_ktp' => UploadedFile::fake()->image('ktp.png')], ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertJsonPath('data.has_ktp', true)
+            ->assertJsonPath('data.id_marketing', $this->marketing->id)
+            ->assertJsonMissingPath('data.file_ktp');
+
+        Storage::disk('local')->assertExists($queued->fresh()->file_ktp);
+        $this->assertSame('pending', $queued->fresh()->status_keseriusan->value);
+    }
+
+    public function test_replacing_ktp_removes_the_old_file(): void
+    {
+        Storage::fake('local');
+        $this->post("/api/marketing/leads/{$this->lead->id}/ktp", ['file_ktp' => UploadedFile::fake()->image('a.png')], ['Accept' => 'application/json'])->assertOk();
+        $first = $this->lead->fresh()->file_ktp;
+
+        $this->post("/api/marketing/leads/{$this->lead->id}/ktp", ['file_ktp' => UploadedFile::fake()->image('b.png')], ['Accept' => 'application/json'])->assertOk();
+
+        Storage::disk('local')->assertMissing($first);
+        Storage::disk('local')->assertExists($this->lead->fresh()->file_ktp);
+    }
+
+    public function test_cannot_upload_ktp_to_another_marketings_lead(): void
+    {
+        Storage::fake('local');
+        $other = Leads::where('id', '!=', $this->lead->id)->first();
+
+        $this->post("/api/marketing/leads/{$other->id}/ktp", ['file_ktp' => UploadedFile::fake()->image('ktp.png')], ['Accept' => 'application/json'])
+            ->assertNotFound();
+
+        $this->assertFalse($other->fresh()->hasKtp());
+        $this->assertSame([], Storage::disk('local')->allFiles());
+    }
+
+    public function test_cannot_claim_a_rejected_or_validated_unclaimed_lead(): void
+    {
+        Storage::fake('local');
+        $rejected = Leads::factory()->create(['status_keseriusan' => 'rejected', 'id_marketing' => null]);
+        $validated = Leads::factory()->create(['status_keseriusan' => 'validated', 'id_marketing' => null]);
+
+        foreach ([$rejected, $validated] as $lead) {
+            $this->post("/api/marketing/leads/{$lead->id}/ktp", ['file_ktp' => UploadedFile::fake()->image('ktp.png')], ['Accept' => 'application/json'])
+                ->assertNotFound();
+            $this->assertNull($lead->fresh()->id_marketing);
+        }
+    }
+
+    public function test_cannot_upload_ktp_to_own_rejected_lead(): void
+    {
+        Storage::fake('local');
+        $lead = Leads::factory()->create(['status_keseriusan' => 'rejected', 'id_marketing' => $this->marketing->id]);
+
+        $this->post("/api/marketing/leads/{$lead->id}/ktp", ['file_ktp' => UploadedFile::fake()->image('ktp.png')], ['Accept' => 'application/json'])
+            ->assertStatus(422);
+
+        $this->assertSame([], Storage::disk('local')->allFiles());
+    }
+
+    public function test_ktp_upload_rejects_missing_or_invalid_files(): void
+    {
+        Storage::fake('local');
+
+        $this->postJson("/api/marketing/leads/{$this->lead->id}/ktp", [])->assertStatus(422);
+        $this->post("/api/marketing/leads/{$this->lead->id}/ktp", ['file_ktp' => UploadedFile::fake()->create('x.exe', 10)], ['Accept' => 'application/json'])
+            ->assertStatus(422);
+        $this->post("/api/marketing/leads/{$this->lead->id}/ktp", ['file_ktp' => UploadedFile::fake()->create('big.pdf', 6000, 'application/pdf')], ['Accept' => 'application/json'])
+            ->assertStatus(422);
+        $this->post('/api/marketing/leads/999999/ktp', ['file_ktp' => UploadedFile::fake()->image('k.png')], ['Accept' => 'application/json'])
+            ->assertNotFound();
+        $this->assertSame([], Storage::disk('local')->allFiles());
+    }
+
+    public function test_ktp_upload_is_marketing_only(): void
+    {
+        Sanctum::actingAs(Akun::factory()->admin()->create());
+
+        $this->post("/api/marketing/leads/{$this->lead->id}/ktp", ['file_ktp' => UploadedFile::fake()->image('ktp.png')], ['Accept' => 'application/json'])
+            ->assertForbidden();
     }
 
     public function test_update_priority_and_notes(): void
