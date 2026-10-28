@@ -4,7 +4,6 @@ namespace App\Filament\Resources\Leads\Schemas;
 
 use App\Enums\LeadPriority;
 use App\Enums\LeadStatus;
-use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -36,15 +35,6 @@ class LeadsForm
                             ->relationship('tipeRumah', 'nama_tipe'),
                         Textarea::make('pesan')
                             ->disabled()
-                            ->columnSpanFull(),
-                        FileUpload::make('file_ktp')
-                            ->label('KTP')
-                            ->disk('local')
-                            ->directory('ktp')
-                            ->visibility('private')
-                            ->acceptedFileTypes(['image/jpeg', 'image/png', 'application/pdf'])
-                            ->maxSize(5120)
-                            ->helperText('Wajib ada sebelum lead bisa divalidasi.')
                             ->columnSpanFull(),
                     ]),
                 Section::make('Penanganan')
