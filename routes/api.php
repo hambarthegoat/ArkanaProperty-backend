@@ -57,7 +57,6 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'role:admin'])->group(functi
     Route::get('/leads', [AdminLeadsController::class, 'index']);
     Route::get('/leads/{id}', [AdminLeadsController::class, 'show']);
     Route::post('/leads/{id}/validate', [AdminLeadsController::class, 'validateLead']);
-    Route::post('/leads/{id}/ktp', [AdminLeadsController::class, 'uploadKtp']);
     Route::get('/leads/{id}/ktp', [AdminLeadsController::class, 'downloadKtp']);
     Route::get('/reports', [AdminReportController::class, 'index']);
     Route::get('/marketing', [AdminMarketingController::class, 'index']);
@@ -73,6 +72,7 @@ Route::prefix('marketing')->middleware(['auth:sanctum', 'role:marketing'])->grou
     Route::get('/leads', [MarketingLeadsController::class, 'index']);
     Route::get('/leads/{id}', [MarketingLeadsController::class, 'show']);
     Route::patch('/leads/{id}', [MarketingLeadsController::class, 'update']);
+    Route::post('/leads/{id}/ktp', [MarketingLeadsController::class, 'uploadKtp']);
     Route::get('/calendar', [MarketingCalendarController::class, 'index']);
     Route::post('/calendar', [MarketingCalendarController::class, 'store']);
     Route::get('/reports', [MarketingReportController::class, 'index']);

@@ -42,14 +42,11 @@ class AdminApiTest extends TestCase
             ->assertJsonPath('message', 'KTP belum diunggah. Lengkapi KTP sebelum memvalidasi lead.');
     }
 
-    public function test_upload_ktp_then_validate_creates_phone_based_account(): void
+    public function test_validate_creates_phone_based_account_for_lead_with_ktp(): void
     {
         Storage::fake('local');
-        $lead = Leads::factory()->create(['no_telp' => '081234567890']);
-
-        $this->post("/api/admin/leads/{$lead->id}/ktp", ['file_ktp' => UploadedFile::fake()->image('ktp.png')], ['Accept' => 'application/json'])
-            ->assertOk()
-            ->assertJsonPath('data.has_ktp', true);
+        Storage::disk('local')->put('ktp/contoh.jpg', 'ktp');
+        $lead = Leads::factory()->withKtp()->create(['no_telp' => '081234567890']);
 
         $this->get("/api/admin/leads/{$lead->id}/ktp")->assertOk();
 
@@ -67,6 +64,35 @@ class AdminApiTest extends TestCase
         $this->postJson('/api/auth/login', ['username' => '081234567890', 'password' => $password])
             ->assertOk()
             ->assertJsonPath('data.akun.role', 'leads');
+    }
+
+    public function test_validation_defaults_to_marketing_that_uploaded_ktp(): void
+    {
+        $lead = Leads::factory()->withKtp()->create(['no_telp' => '081234567890', 'id_marketing' => $this->marketing->id]);
+
+        $this->postJson("/api/admin/leads/{$lead->id}/validate", ['is_valid' => true])
+            ->assertOk()
+            ->assertJsonPath('data.lead.marketing.id', $this->marketing->id);
+    }
+
+    public function test_validation_needs_a_marketing_when_none_is_assigned(): void
+    {
+        $lead = Leads::factory()->withKtp()->create();
+
+        $this->postJson("/api/admin/leads/{$lead->id}/validate", ['is_valid' => true])
+            ->assertStatus(422)
+            ->assertJsonStructure(['data' => ['id_marketing']]);
+    }
+
+    public function test_admin_can_no_longer_upload_ktp(): void
+    {
+        Storage::fake('local');
+        $lead = Leads::factory()->create();
+
+        $this->post("/api/admin/leads/{$lead->id}/ktp", ['file_ktp' => UploadedFile::fake()->image('ktp.png')], ['Accept' => 'application/json'])
+            ->assertStatus(405);
+
+        $this->assertFalse($lead->fresh()->hasKtp());
     }
 
     public function test_repeat_lead_reuses_existing_portal_account(): void
