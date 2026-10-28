@@ -56,6 +56,7 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'role:admin'])->group(functi
     Route::put('/kavling/{id}', [AdminKavlingController::class, 'update']);
     Route::get('/leads', [AdminLeadsController::class, 'index']);
     Route::get('/leads/{id}', [AdminLeadsController::class, 'show']);
+    Route::post('/leads/{id}/assign', [AdminLeadsController::class, 'assign']);
     Route::post('/leads/{id}/validate', [AdminLeadsController::class, 'validateLead']);
     Route::get('/leads/{id}/ktp', [AdminLeadsController::class, 'downloadKtp']);
     Route::get('/reports', [AdminReportController::class, 'index']);

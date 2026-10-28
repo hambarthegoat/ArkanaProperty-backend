@@ -117,6 +117,31 @@ class AdminPanelTest extends TestCase
         $this->assertDatabaseHas('tb_akun', ['username' => '081234567890', 'role' => 'leads']);
     }
 
+    public function test_assign_action_hands_pending_lead_to_marketing(): void
+    {
+        $this->actingAs($this->admin, 'admin');
+        $marketing = Akun::factory()->marketing()->create();
+        $lead = Leads::factory()->create();
+
+        Livewire::test(ListLeads::class)
+            ->callAction(TestAction::make('tugaskan')->table($lead), data: ['id_marketing' => $marketing->id])
+            ->assertHasNoFormErrors()
+            ->assertNotified('Lead ditugaskan ke marketing');
+
+        $lead->refresh();
+        $this->assertSame($marketing->id, $lead->id_marketing);
+        $this->assertSame('pending', $lead->status_keseriusan->value);
+    }
+
+    public function test_assign_action_is_hidden_once_validated(): void
+    {
+        $this->actingAs($this->admin, 'admin');
+        $lead = Leads::factory()->create(['status_keseriusan' => 'validated']);
+
+        Livewire::test(ListLeads::class)
+            ->assertActionHidden(TestAction::make('tugaskan')->table($lead));
+    }
+
     public function test_validate_action_without_ktp_is_refused(): void
     {
         $this->actingAs($this->admin, 'admin');

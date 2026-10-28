@@ -4,14 +4,11 @@ namespace App\Http\Controllers\Api\Marketing;
 
 use App\Enums\LeadPriority;
 use App\Enums\LeadStatus;
-use App\Exceptions\LeadValidationException;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\LeadsResource;
-use App\Models\Akun;
 use App\Models\Leads;
 use App\Traits\ApiResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
@@ -22,15 +19,13 @@ class LeadsController extends Controller
     private const RELATIONS = ['perumahan', 'tipeRumah', 'akunLeads', 'kavling'];
 
     /**
-     * Own leads plus the queue of new (pending, unclaimed) leads, so
-     * marketing can pick one up by collecting and uploading its KTP.
+     * Leads the admin assigned to this marketing, including pending ones
+     * that still wait for a KTP.
      */
     public function index(Request $request)
     {
         $leads = Leads::with(self::RELATIONS)
-            ->where(fn ($q) => $q
-                ->where('id_marketing', $request->user()->id)
-                ->orWhere(fn ($q) => $q->whereNull('id_marketing')->where('status_keseriusan', LeadStatus::Pending)))
+            ->where('id_marketing', $request->user()->id)
             ->latest('updated_at')
             ->get();
 
@@ -70,66 +65,33 @@ class LeadsController extends Controller
     }
 
     /**
-     * KTP is collected by marketing, not by the lead. Uploading to a lead
-     * from the queue claims it; admins then validate it.
+     * KTP is collected by the assigned marketing, not by the lead or admin.
+     * Admins validate the lead once the KTP is in.
      */
     public function uploadKtp(Request $request, string $id)
     {
+        $leads = $this->findOwned($request, $id);
+
+        if (! $leads) {
+            return $this->error('Lead not found', 404);
+        }
+
+        if ($leads->status_keseriusan === LeadStatus::Rejected) {
+            return $this->error('Lead sudah ditolak, KTP tidak dapat diunggah.', 422);
+        }
+
         $request->validate([
             'file_ktp' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
         ]);
 
-        $marketing = $request->user();
-        $path = $request->file('file_ktp')->store('ktp', 'local');
-
-        try {
-            $result = DB::transaction(function () use ($id, $marketing, $path) {
-                $leads = Leads::lockForUpdate()->find($id);
-
-                if (! $leads || ! $this->canUploadKtp($leads, $marketing)) {
-                    return null;
-                }
-
-                if ($leads->status_keseriusan === LeadStatus::Rejected) {
-                    throw new LeadValidationException('Lead sudah ditolak, KTP tidak dapat diunggah.');
-                }
-
-                $old = $leads->file_ktp;
-                $leads->update([
-                    'file_ktp' => $path,
-                    'id_marketing' => $leads->id_marketing ?? $marketing->id,
-                ]);
-
-                return [$leads, $old];
-            });
-        } catch (LeadValidationException $e) {
-            Storage::disk('local')->delete($path);
-
-            return $this->error($e->getMessage(), 422);
-        }
-
-        if (! $result) {
-            Storage::disk('local')->delete($path);
-
-            return $this->error('Lead not found', 404);
-        }
-
-        [$leads, $old] = $result;
+        $old = $leads->file_ktp;
+        $leads->update(['file_ktp' => $request->file('file_ktp')->store('ktp', 'local')]);
 
         if ($old) {
             Storage::disk('local')->delete($old);
         }
 
         return $this->success(new LeadsResource($leads->load(self::RELATIONS)), 'KTP uploaded successfully');
-    }
-
-    private function canUploadKtp(Leads $leads, Akun $marketing): bool
-    {
-        if ($leads->id_marketing === null) {
-            return $leads->status_keseriusan === LeadStatus::Pending;
-        }
-
-        return (int) $leads->id_marketing === (int) $marketing->id;
     }
 
     private function findOwned(Request $request, string $id, array $with = []): ?Leads
