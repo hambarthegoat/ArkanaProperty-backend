@@ -66,7 +66,7 @@ class AdminApiTest extends TestCase
             ->assertJsonPath('data.akun.role', 'leads');
     }
 
-    public function test_validation_defaults_to_marketing_that_uploaded_ktp(): void
+    public function test_validation_defaults_to_the_assigned_marketing(): void
     {
         $lead = Leads::factory()->withKtp()->create(['no_telp' => '081234567890', 'id_marketing' => $this->marketing->id]);
 
@@ -75,13 +75,63 @@ class AdminApiTest extends TestCase
             ->assertJsonPath('data.lead.marketing.id', $this->marketing->id);
     }
 
-    public function test_validation_needs_a_marketing_when_none_is_assigned(): void
+    public function test_validation_needs_an_assigned_marketing(): void
     {
         $lead = Leads::factory()->withKtp()->create();
 
         $this->postJson("/api/admin/leads/{$lead->id}/validate", ['is_valid' => true])
             ->assertStatus(422)
             ->assertJsonStructure(['data' => ['id_marketing']]);
+    }
+
+    public function test_admin_assigns_pending_lead_to_marketing(): void
+    {
+        $lead = Leads::factory()->create(['status_keseriusan' => 'pending']);
+
+        $this->postJson("/api/admin/leads/{$lead->id}/assign", ['id_marketing' => $this->marketing->id])
+            ->assertOk()
+            ->assertJsonPath('data.id_marketing', $this->marketing->id)
+            ->assertJsonPath('data.status_keseriusan', 'pending')
+            ->assertJsonPath('data.marketing.id', $this->marketing->id);
+
+        $other = Akun::factory()->marketing()->create();
+        $this->postJson("/api/admin/leads/{$lead->id}/assign", ['id_marketing' => $other->id])
+            ->assertOk()
+            ->assertJsonPath('data.id_marketing', $other->id);
+    }
+
+    public function test_assign_rejects_non_marketing_account_and_missing_input(): void
+    {
+        $lead = Leads::factory()->create();
+        $leadsAkun = Akun::factory()->leads()->create();
+
+        $this->postJson("/api/admin/leads/{$lead->id}/assign", ['id_marketing' => $leadsAkun->id])->assertStatus(422);
+        $this->postJson("/api/admin/leads/{$lead->id}/assign", [])->assertStatus(422)->assertJsonStructure(['data' => ['id_marketing']]);
+        $this->postJson("/api/admin/leads/{$lead->id}/assign", ['id_marketing' => 999999])->assertStatus(422);
+        $this->postJson('/api/admin/leads/999999/assign', ['id_marketing' => $this->marketing->id])->assertNotFound();
+
+        $this->assertNull($lead->fresh()->id_marketing);
+    }
+
+    public function test_assign_refuses_validated_and_rejected_leads(): void
+    {
+        $validated = Leads::factory()->create(['status_keseriusan' => 'validated', 'id_marketing' => $this->marketing->id]);
+        $rejected = Leads::factory()->create(['status_keseriusan' => 'rejected']);
+        $other = Akun::factory()->marketing()->create();
+
+        $this->postJson("/api/admin/leads/{$validated->id}/assign", ['id_marketing' => $other->id])->assertStatus(422);
+        $this->postJson("/api/admin/leads/{$rejected->id}/assign", ['id_marketing' => $other->id])->assertStatus(422);
+
+        $this->assertSame($this->marketing->id, $validated->fresh()->id_marketing);
+        $this->assertNull($rejected->fresh()->id_marketing);
+    }
+
+    public function test_marketing_cannot_assign_leads(): void
+    {
+        $lead = Leads::factory()->create();
+        Sanctum::actingAs($this->marketing);
+
+        $this->postJson("/api/admin/leads/{$lead->id}/assign", ['id_marketing' => $this->marketing->id])->assertForbidden();
     }
 
     public function test_admin_can_no_longer_upload_ktp(): void

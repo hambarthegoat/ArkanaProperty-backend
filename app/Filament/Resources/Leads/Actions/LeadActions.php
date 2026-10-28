@@ -57,6 +57,36 @@ class LeadActions
             });
     }
 
+    public static function assign(): Action
+    {
+        return Action::make('tugaskan')
+            ->label('Tugaskan')
+            ->icon(Heroicon::OutlinedUserPlus)
+            ->color('info')
+            ->visible(fn (Leads $record) => $record->status_keseriusan === LeadStatus::Pending)
+            ->modalHeading('Tugaskan ke marketing')
+            ->modalDescription('Marketing yang ditugaskan akan mengunggah KTP. Setelah KTP ada, lead bisa divalidasi.')
+            ->fillForm(fn (Leads $record) => ['id_marketing' => $record->id_marketing])
+            ->schema([
+                Select::make('id_marketing')
+                    ->label('Marketing')
+                    ->options(fn () => Akun::where('role', 'marketing')->orderBy('nama')->get()
+                        ->mapWithKeys(fn (Akun $akun) => [$akun->id => $akun->nama ?? $akun->username]))
+                    ->required(),
+            ])
+            ->action(function (Leads $record, array $data) {
+                try {
+                    app(LeadValidationService::class)->assign($record, Akun::findOrFail($data['id_marketing']));
+                } catch (LeadValidationException $e) {
+                    Notification::make()->title('Penugasan gagal')->body($e->getMessage())->danger()->send();
+
+                    return;
+                }
+
+                Notification::make()->title('Lead ditugaskan ke marketing')->success()->send();
+            });
+    }
+
     public static function reject(): Action
     {
         return Action::make('tolak')

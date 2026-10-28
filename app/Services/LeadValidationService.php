@@ -74,6 +74,29 @@ class LeadValidationService
         });
     }
 
+    /**
+     * Assign (or reassign) a pending lead to a marketing account so that
+     * marketing can collect the KTP before the admin validates it.
+     */
+    public function assign(Leads $lead, Akun $marketing): Leads
+    {
+        if ($lead->status_keseriusan === LeadStatus::Validated) {
+            throw new LeadValidationException('Lead yang sudah divalidasi tidak bisa ditugaskan ulang.');
+        }
+
+        if ($lead->status_keseriusan === LeadStatus::Rejected) {
+            throw new LeadValidationException('Lead yang sudah ditolak tidak bisa ditugaskan.');
+        }
+
+        if (! $marketing->isMarketing()) {
+            throw new LeadValidationException('Akun yang dipilih bukan akun marketing.');
+        }
+
+        $lead->update(['id_marketing' => $marketing->id]);
+
+        return $lead;
+    }
+
     public function reject(Leads $lead): Leads
     {
         if ($lead->status_keseriusan === LeadStatus::Validated) {

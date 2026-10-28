@@ -57,6 +57,7 @@ class LeadsTable
                     ->relationship('marketing', 'nama', fn ($query) => $query->where('role', 'marketing')),
             ])
             ->recordActions([
+                LeadActions::assign(),
                 LeadActions::validate(),
                 ActionGroup::make([
                     EditAction::make()->label('Detail'),

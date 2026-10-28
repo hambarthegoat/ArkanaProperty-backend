@@ -14,6 +14,7 @@ class EditLeads extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            LeadActions::assign()->after(fn () => $this->refreshFormData(['id_marketing'])),
             LeadActions::validate()->after(fn () => $this->refreshFormData(['status_keseriusan', 'id_marketing', 'prioritas'])),
             LeadActions::reject()->after(fn () => $this->refreshFormData(['status_keseriusan'])),
             LeadActions::downloadKtp(),

@@ -95,6 +95,31 @@ class LeadsController extends Controller
         ], 'KTP validated, leads account ready and marketing assigned successfully');
     }
 
+    /**
+     * Hand a pending lead to a marketing account. Marketing then uploads the
+     * KTP and the admin validates.
+     */
+    public function assign(Request $request, string $id, LeadValidationService $service)
+    {
+        $leads = Leads::find($id);
+
+        if (! $leads) {
+            return $this->error('Lead not found', 404);
+        }
+
+        $request->validate([
+            'id_marketing' => 'required|integer|exists:tb_akun,id',
+        ]);
+
+        try {
+            $service->assign($leads, Akun::findOrFail($request->id_marketing));
+        } catch (LeadValidationException $e) {
+            return $this->error($e->getMessage(), 422);
+        }
+
+        return $this->success(new LeadsResource($leads->load(self::RELATIONS)), 'Lead assigned to marketing successfully');
+    }
+
     public function downloadKtp(string $id)
     {
         $leads = Leads::find($id);
