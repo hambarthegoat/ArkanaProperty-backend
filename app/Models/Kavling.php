@@ -17,6 +17,7 @@ class Kavling extends Model
         'id_tipe',
         'blok',
         'nomor_kavling',
+        'nomor_rumah',
         'status',
         'id_leads',
     ];
@@ -38,6 +39,17 @@ class Kavling extends Model
         return [
             'status' => KavlingStatus::class,
         ];
+    }
+
+    /**
+     * "A-01" for a single-house kavling, "A-01 · Rumah 2" when the kavling
+     * holds several houses.
+     */
+    public function getLabelAttribute(): string
+    {
+        return $this->nomor_rumah !== null && $this->nomor_rumah !== ''
+            ? "{$this->nomor_kavling} · Rumah {$this->nomor_rumah}"
+            : $this->nomor_kavling;
     }
 
     public function tipeRumah(): BelongsTo

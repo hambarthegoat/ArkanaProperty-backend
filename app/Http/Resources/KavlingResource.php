@@ -16,6 +16,8 @@ class KavlingResource extends JsonResource
             'id_tipe' => $this->id_tipe,
             'blok' => $this->blok,
             'nomor_kavling' => $this->nomor_kavling,
+            'nomor_rumah' => $this->nomor_rumah,
+            'label' => $this->label,
             'status' => $this->status?->value,
             'status_label' => $this->status?->label(),
             'id_leads' => $this->when($this->relationLoaded('leads'), $this->id_leads),

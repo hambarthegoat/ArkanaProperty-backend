@@ -203,7 +203,7 @@ Admin panel tersedia di `http://127.0.0.1:8000/admin` dan memakai data yang sama
 - Login memakai **username** dari `tb_akun` (guard `admin`); hanya akun `role = admin` yang bisa masuk. Akun marketing/leads memakai aplikasi frontend.
 - **Dashboard**: statistik leads & unit, tabel leads terbaru.
 - **Properti → Perumahan**: CRUD perumahan + gambar, tipe rumah dikelola di dalam halaman edit perumahan. Kolom jumlah unit tersedia/booking/terjual.
-- **Properti → Kavling**: CRUD kavling, ubah status langsung dari tabel, filter per perumahan/blok/status. Status `Tersedia` otomatis melepas pembeli.
+- **Properti → Kavling**: CRUD kavling (satu kavling boleh berisi beberapa rumah lewat kolom Nomor Rumah), ubah status langsung dari tabel, filter per perumahan/blok/status. Status `Tersedia` otomatis melepas pembeli.
 - **Penjualan → Leads**: aksi **Tugaskan** (pilih marketing yang mengumpulkan KTP), aksi **Validasi** (pilih marketing → akun portal dibuat dengan username = nomor HP, password tampil sekali di notifikasi), **Tolak**, **Unduh KTP** (KTP diunggah oleh marketing, bukan admin). Lead tidak bisa dibuat manual (hanya dari form minat).
 - **Marketing → Akun Marketing / Report Marketing / Agenda**: kelola akun marketing; report dan agenda read-only (diisi marketing dari frontend).
 
@@ -254,7 +254,7 @@ Konvensi: field snake_case berbahasa Indonesia, uang dikirim sebagai integer rup
 | PUT    | `/api/admin/perumahan/{id}`         | Edit perumahan (upload gambar: `POST` multipart + `_method=PUT`) |
 | DELETE | `/api/admin/perumahan/{id}`         | Hapus perumahan; ditolak bila ada lead atau unit booking/terjual |
 | GET    | `/api/admin/kavling`                | List kavling. Query: `id_perumahan`, `id_tipe`, `blok`, `status`, `search` |
-| POST   | `/api/admin/tipe-rumah/{idTipe}/kavling` | Tambah kavling (`blok`, `nomor_kavling`, `status`) |
+| POST   | `/api/admin/tipe-rumah/{idTipe}/kavling` | Tambah kavling (`blok`, `nomor_kavling`, `status`, `jumlah_rumah` untuk beberapa rumah pada satu kavling) |
 | PUT    | `/api/admin/kavling/{id}`           | Update status (`tersedia`/`booking`/`terjual`), pembeli (`id_leads`), blok/nomor |
 | GET    | `/api/admin/leads`                  | List leads. Query: `status`, `search` |
 | GET    | `/api/admin/leads/{id}`             | Detail lead |

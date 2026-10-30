@@ -71,7 +71,7 @@ class PerumahanController extends Controller
 
     public function showTipe(string $id)
     {
-        $tipe = TipeRumah::with(['perumahan', 'kavling' => fn ($q) => $q->orderBy('blok')->orderBy('nomor_kavling')])
+        $tipe = TipeRumah::with(['perumahan', 'kavling' => fn ($q) => $q->orderBy('blok')->orderBy('nomor_kavling')->orderByRaw('length(nomor_rumah)')->orderBy('nomor_rumah')->orderBy('id')])
             ->withCount(['kavling as kavling_tersedia_count' => fn ($k) => $k->where('status', 'tersedia')])
             ->find($id);
 
