@@ -490,6 +490,53 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '422': { description: "Masih ada lead atau unit booking/terjual" }
 
+  /admin/perumahan/{id}/blok:
+    get:
+      tags: [Admin]
+      summary: Daftar blok sebuah perumahan beserta jumlah rumahnya
+      security: [{ sanctumToken: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: "data = Blok[] (id, id_perumahan, nama, jumlah_rumah)" }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [Admin]
+      summary: Buat blok (boleh kosong; rumah ditambahkan kemudian)
+      description: |
+        Nama blok unik per perumahan (spasi di awal/akhir dibuang). Satu blok boleh berisi
+        banyak rumah: tambahkan lewat `POST /admin/tipe-rumah/{idTipe}/kavling` dengan
+        `blok` yang sama. Menambah rumah ke blok yang belum ada otomatis membuat blok itu.
+      security: [{ sanctumToken: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nama]
+              properties:
+                nama: { type: string, maxLength: 50, example: Blok C }
+      responses:
+        '201': { description: "data = Blok" }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+
+  /admin/blok/{id}:
+    delete:
+      tags: [Admin]
+      summary: Hapus blok yang masih kosong
+      description: Blok yang masih berisi rumah ditolak (422); rumah tidak pernah ikut terhapus.
+      security: [{ sanctumToken: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: "Blok terhapus (data = null)" }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { description: Blok masih berisi rumah }
+
   /admin/kavling:
     get:
       tags: [Admin]

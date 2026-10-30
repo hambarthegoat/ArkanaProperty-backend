@@ -32,6 +32,20 @@ class Kavling extends Model
                 $kavling->id_leads = null;
             }
         });
+
+        // A house in a block that has no record yet (API, panel or seeder)
+        // creates the block, so the block list always includes it.
+        static::saved(function (Kavling $kavling) {
+            if (blank($kavling->blok)) {
+                return;
+            }
+
+            $idPerumahan = $kavling->tipeRumah()->value('id_perumahan');
+
+            if ($idPerumahan) {
+                Blok::createOrFirst(['id_perumahan' => $idPerumahan, 'nama' => $kavling->blok]);
+            }
+        });
     }
 
     protected function casts(): array

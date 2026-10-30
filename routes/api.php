@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\BlokController as AdminBlokController;
 use App\Http\Controllers\Api\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Api\Admin\KavlingController as AdminKavlingController;
 use App\Http\Controllers\Api\Admin\LeadsController as AdminLeadsController;
@@ -53,6 +54,9 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'role:admin'])->group(functi
     Route::get('/perumahan/{id}', [AdminPerumahanController::class, 'show']);
     Route::put('/perumahan/{id}', [AdminPerumahanController::class, 'update']);
     Route::delete('/perumahan/{id}', [AdminPerumahanController::class, 'destroy']);
+    Route::get('/perumahan/{id}/blok', [AdminBlokController::class, 'index']);
+    Route::post('/perumahan/{id}/blok', [AdminBlokController::class, 'store']);
+    Route::delete('/blok/{id}', [AdminBlokController::class, 'destroy']);
     Route::get('/kavling', [AdminKavlingController::class, 'index']);
     Route::post('/tipe-rumah/{idTipe}/kavling', [AdminKavlingController::class, 'store']);
     Route::put('/kavling/{id}', [AdminKavlingController::class, 'update']);
