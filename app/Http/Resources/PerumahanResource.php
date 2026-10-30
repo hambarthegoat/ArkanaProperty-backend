@@ -27,6 +27,7 @@ class PerumahanResource extends JsonResource
                 'terjual' => (int) $this->unit_terjual,
             ]),
             'tipe_rumah' => TipeRumahResource::collection($this->whenLoaded('tipeRumah')),
+            'blok' => BlokResource::collection($this->whenLoaded('blok')),
             'created_at' => $this->created_at?->toIso8601String(),
         ];
     }

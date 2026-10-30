@@ -18,7 +18,7 @@ class PerumahanController extends Controller
 
     public function index()
     {
-        $perumahan = Perumahan::with(['tipeRumah' => fn ($q) => $q->orderBy('harga')])
+        $perumahan = Perumahan::with(['tipeRumah' => fn ($q) => $q->orderBy('harga'), 'blok' => fn ($q) => $q->withJumlahRumah()->orderBy('nama')])
             ->withUnitCounts()
             ->orderBy('nama_perumahan')
             ->get();
@@ -28,7 +28,7 @@ class PerumahanController extends Controller
 
     public function show(string $id)
     {
-        $perumahan = Perumahan::with(['tipeRumah' => fn ($q) => $q->orderBy('harga'), 'tipeRumah.kavling'])
+        $perumahan = Perumahan::with(['tipeRumah' => fn ($q) => $q->orderBy('harga'), 'tipeRumah.kavling', 'blok' => fn ($q) => $q->withJumlahRumah()->orderBy('nama')])
             ->withUnitCounts()
             ->find($id);
 

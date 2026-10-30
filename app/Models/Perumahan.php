@@ -66,6 +66,11 @@ class Perumahan extends Model
         return null;
     }
 
+    public function blok(): HasMany
+    {
+        return $this->hasMany(Blok::class, 'id_perumahan');
+    }
+
     public function tipeRumah(): HasMany
     {
         return $this->hasMany(TipeRumah::class, 'id_perumahan');
