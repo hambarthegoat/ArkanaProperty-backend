@@ -44,6 +44,28 @@ class Perumahan extends Model
         ]);
     }
 
+    /**
+     * Why this project cannot be deleted, or null when it can. Deleting
+     * cascades to house types, units and leads, so projects with customer
+     * data or booked/sold units are protected.
+     */
+    public function deletionBlocker(): ?string
+    {
+        $leads = $this->leads()->count();
+
+        if ($leads > 0) {
+            return "Perumahan ini memiliki {$leads} lead sehingga tidak bisa dihapus. Ubah statusnya bila tidak ingin ditampilkan lagi.";
+        }
+
+        $terpakai = $this->kavling()->whereIn('tb_kavling.status', ['booking', 'terjual'])->count();
+
+        if ($terpakai > 0) {
+            return "Perumahan ini memiliki {$terpakai} unit booking atau terjual sehingga tidak bisa dihapus.";
+        }
+
+        return null;
+    }
+
     public function tipeRumah(): HasMany
     {
         return $this->hasMany(TipeRumah::class, 'id_perumahan');

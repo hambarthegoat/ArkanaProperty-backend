@@ -3,7 +3,7 @@
 namespace App\Filament\Resources\Perumahans\Tables;
 
 use App\Enums\PerumahanStatus;
-use Filament\Actions\DeleteAction;
+use App\Filament\Resources\Perumahans\Actions\PerumahanActions;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -45,7 +45,7 @@ class PerumahansTable
             ])
             ->recordActions([
                 EditAction::make(),
-                DeleteAction::make(),
+                PerumahanActions::delete(),
             ]);
     }
 }
