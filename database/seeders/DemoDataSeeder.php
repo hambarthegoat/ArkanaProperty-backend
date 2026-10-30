@@ -36,7 +36,7 @@ class DemoDataSeeder extends Seeder
                 'status' => 'aktif',
                 'tipe' => [
                     ['nama_tipe' => 'Tipe 36/60', 'jenis_rumah' => 'subsidi', 'harga' => 162000000, 'dp' => 5000000, 'cicilan' => 900000, 'luas_tanah' => 60, 'luas_bangunan' => 36, 'kamar_tidur' => 2, 'kamar_mandi' => 1, 'spesifikasi' => '2 KT, 1 KM, Dapur, Carport',
-                        'kavling' => [['Blok A', 'A-01', 'terjual'], ['Blok A', 'A-02', 'tersedia'], ['Blok A', 'A-03', 'booking'], ['Blok A', 'A-04', 'tersedia'], ['Blok B', 'B-01', 'tersedia'], ['Blok B', 'B-02', 'booking']]],
+                        'kavling' => [['Blok A', 'A-01', 'terjual'], ['Blok A', 'A-02', 'tersedia'], ['Blok A', 'A-03', 'booking'], ['Blok A', 'A-04', 'tersedia'], ['Blok B', 'B-01', 'tersedia'], ['Blok B', 'B-02', 'booking'], ['Blok B', 'B-03', 'tersedia', '1'], ['Blok B', 'B-03', 'booking', '2']]],
                     ['nama_tipe' => 'Tipe 45/84', 'jenis_rumah' => 'premium', 'harga' => 245000000, 'dp' => 25000000, 'cicilan' => 1800000, 'luas_tanah' => 84, 'luas_bangunan' => 45, 'kamar_tidur' => 2, 'kamar_mandi' => 1, 'spesifikasi' => '2 KT, 1 KM, Ruang Keluarga, Carport',
                         'kavling' => [['Blok A', 'A-05', 'terjual'], ['Blok A', 'A-06', 'tersedia']]],
                 ],
@@ -83,9 +83,10 @@ class DemoDataSeeder extends Seeder
                     collect($tipeData)->except('kavling')->all(),
                 );
 
-                foreach ($tipeData['kavling'] as [$blok, $nomor, $status]) {
+                foreach ($tipeData['kavling'] as $row) {
+                    [$blok, $nomor, $status] = $row;
                     $kavlingByNomor[$nomor] = Kavling::updateOrCreate(
-                        ['id_tipe' => $tipe->id, 'nomor_kavling' => $nomor],
+                        ['id_tipe' => $tipe->id, 'nomor_kavling' => $nomor, 'nomor_rumah' => $row[3] ?? null],
                         ['blok' => $blok, 'status' => $status],
                     );
                 }

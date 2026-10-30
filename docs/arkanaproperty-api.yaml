@@ -138,6 +138,8 @@ components:
         id_tipe: { type: integer, example: 1 }
         blok: { type: string, nullable: true, example: Blok A }
         nomor_kavling: { type: string, example: A-01 }
+        nomor_rumah: { type: string, nullable: true, example: "2", description: "Terisi bila kavling berisi lebih dari satu rumah; null untuk kavling satu rumah" }
+        label: { type: string, example: "A-01 · Rumah 2", description: "nomor_kavling, ditambah nomor rumah bila ada" }
         status: { type: string, enum: [tersedia, booking, terjual] }
         status_label: { type: string, example: Booking }
         id_leads: { type: integer, nullable: true, description: Hanya di endpoint admin }
@@ -505,7 +507,14 @@ paths:
   /admin/tipe-rumah/{idTipe}/kavling:
     post:
       tags: [Admin]
-      summary: Tambah kavling ke tipe rumah
+      summary: Tambah kavling (satu atau lebih rumah) ke tipe rumah
+      description: |
+        Satu kavling = perumahan + blok + nomor_kavling dan boleh berisi beberapa rumah.
+        Tiap rumah adalah satu baris dengan status dan pembeli sendiri. `jumlah_rumah`
+        (1-20, default 1) membuat beberapa rumah sekaligus bernomor 1, 2, 3... Mengirim
+        kavling yang sudah ada menambah rumah baru dan melanjutkan penomoran; kavling
+        lama yang belum bernomor otomatis menjadi Rumah 1. Respons `data` adalah rumah
+        pertama yang dibuat, ditambah `jumlah_dibuat`.
       security: [{ sanctumToken: [] }]
       parameters:
         - { name: idTipe, in: path, required: true, schema: { type: integer } }
@@ -519,7 +528,8 @@ paths:
               properties:
                 blok: { type: string, example: Blok A }
                 nomor_kavling: { type: string, example: A-07 }
-                status: { type: string, enum: [tersedia, booking, terjual], default: tersedia }
+                jumlah_rumah: { type: integer, minimum: 1, maximum: 20, default: 1, description: "Jumlah rumah pada kavling ini" }
+                status: { type: string, enum: [tersedia, booking, terjual], default: tersedia, description: "Status awal semua rumah yang dibuat" }
       responses:
         '201': { description: "data = Kavling" }
         '404': { description: Tipe rumah tidak ditemukan }
@@ -545,6 +555,7 @@ paths:
                 id_leads: { type: integer, nullable: true, description: id lead pembeli }
                 blok: { type: string }
                 nomor_kavling: { type: string }
+                nomor_rumah: { type: string, nullable: true, description: "Harus unik pada kavling yang sama (422 bila bentrok)" }
       responses:
         '200': { description: "data = Kavling" }
         '404': { description: Kavling tidak ditemukan }

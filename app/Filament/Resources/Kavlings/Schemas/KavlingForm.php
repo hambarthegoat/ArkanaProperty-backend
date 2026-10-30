@@ -29,6 +29,11 @@ class KavlingForm
                     ->placeholder('A-01')
                     ->required()
                     ->maxLength(50),
+                TextInput::make('nomor_rumah')
+                    ->label('Nomor Rumah')
+                    ->placeholder('1')
+                    ->maxLength(20)
+                    ->helperText('Isi bila kavling ini berisi lebih dari satu rumah (1, 2, 3...). Kosongkan untuk kavling dengan satu rumah.'),
                 Select::make('status')
                     ->options(KavlingStatus::class)
                     ->default(KavlingStatus::Tersedia)
