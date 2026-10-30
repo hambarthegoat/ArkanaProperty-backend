@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Filament\Auth\Login;
 use App\Filament\Resources\Kavlings\Pages\EditKavling;
 use App\Filament\Resources\Leads\Pages\ListLeads;
+use App\Filament\Resources\Marketing\Pages\CreateMarketing;
 use App\Models\Akun;
 use App\Models\Kalender;
 use App\Models\Kavling;
@@ -153,6 +154,32 @@ class AdminPanelTest extends TestCase
             ->assertNotified('Validasi gagal');
 
         $this->assertSame('pending', $lead->fresh()->status_keseriusan->value);
+    }
+
+    public function test_create_marketing_account_in_panel(): void
+    {
+        $this->actingAs($this->admin, 'admin');
+
+        Livewire::test(CreateMarketing::class)
+            ->fillForm(['nama' => 'Rina', 'username' => 'rina', 'no_telp' => '+62 812-9999-0001', 'password' => 'rahasia123'])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $akun = Akun::where('username', 'rina')->firstOrFail();
+        $this->assertSame('marketing', $akun->role);
+        $this->assertSame('081299990001', $akun->no_telp);
+        $this->assertTrue(\Illuminate\Support\Facades\Hash::check('rahasia123', $akun->password));
+    }
+
+    public function test_create_marketing_account_rejects_duplicate_username(): void
+    {
+        $this->actingAs($this->admin, 'admin');
+        Akun::factory()->marketing()->create(['username' => 'rina']);
+
+        Livewire::test(CreateMarketing::class)
+            ->fillForm(['nama' => 'Rina 2', 'username' => 'rina', 'password' => 'rahasia123'])
+            ->call('create')
+            ->assertHasFormErrors(['username']);
     }
 
     public function test_reject_action(): void

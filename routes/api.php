@@ -51,6 +51,8 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'role:admin'])->group(functi
     Route::get('/perumahan', [AdminPerumahanController::class, 'index']);
     Route::post('/perumahan', [AdminPerumahanController::class, 'store']);
     Route::get('/perumahan/{id}', [AdminPerumahanController::class, 'show']);
+    Route::put('/perumahan/{id}', [AdminPerumahanController::class, 'update']);
+    Route::delete('/perumahan/{id}', [AdminPerumahanController::class, 'destroy']);
     Route::get('/kavling', [AdminKavlingController::class, 'index']);
     Route::post('/tipe-rumah/{idTipe}/kavling', [AdminKavlingController::class, 'store']);
     Route::put('/kavling/{id}', [AdminKavlingController::class, 'update']);

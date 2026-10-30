@@ -443,6 +443,50 @@ paths:
       responses:
         '200': { description: "data = Perumahan" }
         '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Admin]
+      summary: Edit perumahan (nama, lokasi, deskripsi, status, gambar)
+      description: |
+        Semua field opsional (hanya yang dikirim yang berubah). Untuk upload `gambar`
+        kirim `POST` multipart dengan `_method=PUT` karena PHP tidak mem-parse body
+        multipart pada PUT. Gambar lama yang diunggah dihapus saat diganti.
+      security: [{ sanctumToken: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nama_perumahan: { type: string }
+                lokasi: { type: string }
+                deskripsi: { type: string, nullable: true }
+                status: { type: string, enum: [aktif, pre_launch] }
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                _method: { type: string, enum: [PUT] }
+                gambar: { type: string, format: binary, description: "Gambar, maks 5MB" }
+      responses:
+        '200': { description: "data = Perumahan" }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+    delete:
+      tags: [Admin]
+      summary: Hapus perumahan beserta tipe rumah dan kavlingnya
+      description: |
+        Ditolak (422) bila perumahan sudah memiliki lead atau unit berstatus booking/terjual,
+        karena penghapusan ikut menghapus data tersebut.
+      security: [{ sanctumToken: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: "Perumahan terhapus (data = null)" }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { description: "Masih ada lead atau unit booking/terjual" }
 
   /admin/kavling:
     get:
