@@ -24,6 +24,10 @@ class KavlingsTable
                     ->label('Unit')
                     ->searchable()
                     ->sortable(),
+                TextColumn::make('nomor_rumah')
+                    ->label('Rumah')
+                    ->placeholder('-')
+                    ->sortable(),
                 TextColumn::make('blok')
                     ->searchable()
                     ->sortable(),
