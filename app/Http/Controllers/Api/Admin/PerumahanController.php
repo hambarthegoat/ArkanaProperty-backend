@@ -78,4 +78,66 @@ class PerumahanController extends Controller
 
         return $this->success(new PerumahanResource($perumahan), 'Perumahan created successfully', 201);
     }
+
+    /**
+     * Edit project details. File uploads must be sent as POST with
+     * `_method=PUT` because PHP does not parse multipart PUT bodies.
+     */
+    public function update(Request $request, string $id)
+    {
+        $perumahan = Perumahan::find($id);
+
+        if (! $perumahan) {
+            return $this->error('Perumahan not found', 404);
+        }
+
+        $validated = $request->validate([
+            'nama_perumahan' => 'sometimes|required|string|max:255',
+            'lokasi' => 'sometimes|required|string|max:255',
+            'deskripsi' => 'sometimes|nullable|string',
+            'status' => ['sometimes', 'required', Rule::enum(PerumahanStatus::class)],
+            'gambar' => 'nullable|image|max:5120',
+        ]);
+
+        $old = $perumahan->gambar;
+        $data = collect($validated)->except('gambar')->all();
+
+        if ($request->hasFile('gambar')) {
+            $data['gambar'] = $request->file('gambar')->store('perumahan', 'public');
+        }
+
+        $perumahan->update($data);
+
+        if (isset($data['gambar'])) {
+            Perumahan::deleteGambarFile($old);
+        }
+
+        return $this->success(
+            new PerumahanResource(Perumahan::with(['tipeRumah' => fn ($q) => $q->orderBy('harga')])->withUnitCounts()->find($perumahan->id)),
+            'Perumahan updated successfully',
+        );
+    }
+
+    /**
+     * Deleting also removes the project's house types and available units,
+     * so it is refused while leads or booked/sold units exist.
+     */
+    public function destroy(string $id)
+    {
+        $perumahan = Perumahan::find($id);
+
+        if (! $perumahan) {
+            return $this->error('Perumahan not found', 404);
+        }
+
+        if ($blocker = $perumahan->deletionBlocker()) {
+            return $this->error($blocker, 422);
+        }
+
+        $gambar = $perumahan->gambar;
+        $perumahan->delete();
+        Perumahan::deleteGambarFile($gambar);
+
+        return $this->success(null, 'Perumahan deleted successfully');
+    }
 }

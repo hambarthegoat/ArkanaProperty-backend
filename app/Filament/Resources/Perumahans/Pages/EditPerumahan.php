@@ -2,8 +2,8 @@
 
 namespace App\Filament\Resources\Perumahans\Pages;
 
+use App\Filament\Resources\Perumahans\Actions\PerumahanActions;
 use App\Filament\Resources\Perumahans\PerumahanResource;
-use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
 
 class EditPerumahan extends EditRecord
@@ -13,7 +13,7 @@ class EditPerumahan extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            DeleteAction::make(),
+            PerumahanActions::delete(),
         ];
     }
 }
