@@ -254,6 +254,9 @@ Konvensi: field snake_case berbahasa Indonesia, uang dikirim sebagai integer rup
 | PUT    | `/api/admin/perumahan/{id}`         | Edit perumahan (upload gambar: `POST` multipart + `_method=PUT`) |
 | DELETE | `/api/admin/perumahan/{id}`         | Hapus perumahan; ditolak bila ada lead atau unit booking/terjual |
 | GET    | `/api/admin/kavling`                | List kavling. Query: `id_perumahan`, `id_tipe`, `blok`, `status`, `search` |
+| GET    | `/api/admin/perumahan/{id}/blok`    | Daftar blok + jumlah rumah |
+| POST   | `/api/admin/perumahan/{id}/blok`    | Buat blok (`nama`), boleh kosong; satu blok bisa berisi banyak rumah |
+| DELETE | `/api/admin/blok/{id}`              | Hapus blok kosong (ditolak bila masih berisi rumah) |
 | POST   | `/api/admin/tipe-rumah/{idTipe}/kavling` | Tambah kavling (`blok`, `nomor_kavling`, `status`, `jumlah_rumah` untuk beberapa rumah pada satu kavling) |
 | PUT    | `/api/admin/kavling/{id}`           | Update status (`tersedia`/`booking`/`terjual`), pembeli (`id_leads`), blok/nomor |
 | GET    | `/api/admin/leads`                  | List leads. Query: `status`, `search` |

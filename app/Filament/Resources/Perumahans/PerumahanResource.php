@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Perumahans;
 use App\Filament\Resources\Perumahans\Pages\CreatePerumahan;
 use App\Filament\Resources\Perumahans\Pages\EditPerumahan;
 use App\Filament\Resources\Perumahans\Pages\ListPerumahans;
+use App\Filament\Resources\Perumahans\RelationManagers\BlokRelationManager;
 use App\Filament\Resources\Perumahans\RelationManagers\TipeRumahRelationManager;
 use App\Filament\Resources\Perumahans\Schemas\PerumahanForm;
 use App\Filament\Resources\Perumahans\Tables\PerumahansTable;
@@ -56,6 +57,7 @@ class PerumahanResource extends Resource
     {
         return [
             TipeRumahRelationManager::class,
+            BlokRelationManager::class,
         ];
     }
 
